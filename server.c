@@ -1,17 +1,14 @@
 #include	"unp.h"
 #include    "data_format.h"
 #include    "server_comm.h"
-#include    "utils.h"
+#include    "game.h"
 #include	<stdlib.h>
 #include	<stdio.h>
 #include    <stdbool.h>
+#include <pthread.h>
+
 #define MAX_PLAYER 100
-int getSessin(){
-    static int state=0;
-    if(!state) state=rand();
-    state=(state*20240101)+54321;
-    return state;
-}
+
 /*List_Room{
     List_player*;
     int room_id;
@@ -81,192 +78,59 @@ int getSessin(){
 
 }
 */
-struct List_Room listRoom;
-struct Node_Player* players[MAX_PLAYER+10];
+
 fd_set allset;
-int playerCnt;
+int fdCnt;
 void corruptedClose(int fd){
-    if (players[fd]){
-        players[fd]->fd=-1;
-        players[fd]=NULL;
-    }
+    --fdCnt;
     Close(fd);
     FD_CLR(fd,&allset);
 }
-struct List_Room* getRoom(int room_id){
-    struct List_Room* ptr=listRoom.next;
-    while(ptr!=(&listRoom) && ptr->room_id!=room_id) ptr=ptr->next;
-    return ptr->room_id==room_id ? ptr: NULL;
-}
-int onError(int fd,int session, int errcode,const char * errmsg){
-    struct Header_Error_Res err;
-    err.code=errcode;
-    err.session=session;
-    snprintf(err.errmsg,sizeof(err.errmsg),"%s",errmsg);
-    int re=sendData(fd,(struct Header_Base*)&err,sizeof(err));
-    return re;
-}
-int sendGameInfo(struct List_Room* room,int player_id,int code){
-    struct Node_Player* player=&(room->players[player_id]);
-    size_t len=HEADER_SIZE+16*(max(0,room->player_number-2));
-    struct Header_Room_Info_Res* header=calloc(1,len);
-    header->code=code;
-    header->session=player->session;
-    header->room_id=player->room_id;
-    header->player_id=player->player_id;
-    header->player_number=room->player_number;
-    header->sizeX=room->sizeX;
-    header->sizeY=room->sizeY;
-    //header->player_cnt=room->player_cnt;
-    for (int i=0;i<room->player_number;++i)
-        memcpy(header->player_names[i],(room->players[i]).name,16);
-    int re=sendData(player->fd,(struct Header_Base*)header,len);
-    free(header);
 
-    return re;
-        
-}
-bool verifySession(struct Header_Room_Info* header){
-    struct List_Room* room=getRoom(header->room_id);
-    if(room==NULL) return false;
-    if (header->player_id>=room->player_number||header->session!=room->players[header->player_id].session)
-        return false;
-    return true;
-}
+
+
 void commandHandler(int fd,struct Header_Base* _header, size_t len){
-
+    struct Header_Base* res=NULL;
+    size_t reslen=0;
+    puts("commandHandler start");
     switch (_header->code){
         case CMD_REGISTER :{
-            struct Header_Room_Register* header=(struct Header_Room_Register*) _header;
-            struct List_Room* room=getRoom(header->room_id);
-            if(room==NULL){
-                room=calloc(1,sizeof(struct List_Room));
-                
-                struct List_Room *tmpP;
-                tmpP=listRoom.prev;
-                
-                push_backList(listRoom,room);
-
-                assert(room->next==&listRoom);assert(room->prev==tmpP);
-                assert(listRoom.prev==room);  assert(tmpP->next==room);
-                
-                room->player_number=header->player_number;
-                room->players=calloc(room->player_number,sizeof(struct Node_Player));
-                room->player_cnt=0;
-                
-                room->gameState=STATE_GAME_NOT_GOING;
-                room->round=0;
-                room->room_id=header->room_id;
-
-                room->sizeX=header->sizeX;
-                room->sizeY=header->sizeY;
-                room->map=calloc(room->sizeX*room->sizeY,sizeof(struct Grid));
-
-                memcpy(room->passwd,header->passwd,16);
-
-                struct Node_Player* player=&(room->players[room->player_cnt]);
-                player->session=getSessin();
-                player->room_id=room->room_id;
-                player->player_id=room->player_cnt;room->player_cnt+=1;
-                player->fd=fd;
-                memcpy(player->name,header->name,16);
-                
-                printf("Room %d '%s' Added %d\n",header->room_id,player->name,room->player_cnt);
-
-                int re=sendGameInfo(room,player->player_id,RES_JOIN_SUCC);
-                if(re<=0) corruptedClose(fd);
-
-            }else{
-                int re=onError(fd, header->session, RES_REGISTER_FAIL,"Room Already Exist");
-                if(re<=0) corruptedClose(fd);
-            }
-
+            Register_Room(&res,&reslen,(struct Header_Room_Register*)_header);
             break;
         }
         case CMD_JOIN     :{
-            struct Header_Room_Join* header=(struct Header_Room_Join*) _header;
-            struct List_Room* room=getRoom(header->room_id);
-            if(room==NULL){
-                int re=onError(fd, header->session, RES_JOIN_FAIL,"Room Doesn't Exist");
-                if(re<=0) corruptedClose(fd);
-            }else if(room->player_cnt==room->player_number){
-                int re=onError(fd, header->session, RES_JOIN_FAIL,"Room Is Full");
-                if(re<=0) corruptedClose(fd);
-            }else if (strcmp(room->passwd,header->passwd)){
-                int re=onError(fd, header->session, RES_JOIN_FAIL,"Password Is Wrong");
-                if(re<=0) corruptedClose(fd);
-
-            }else{
-                struct Node_Player* player=&(room->players[room->player_cnt]);
-                player->session=getSessin();
-                player->room_id=room->room_id;
-                player->player_id=room->player_cnt++;
-                player->fd=fd;
-                memcpy(player->name,header->name,16);
-
-                printf("Room %d '%s' Added %d\n",header->room_id,player->name,room->player_cnt);
-                
-
-                int re=sendGameInfo(room,player->player_id,RES_JOIN_SUCC);
-                if(re<=0) corruptedClose(fd);
-
-                
-            }   
+            Join_Room(&res,&reslen,(struct Header_Room_Join*)_header);
             break;
         }
         case CMD_ROOM_INFO  :{
-            struct Header_Room_Info* header=(struct Header_Room_Info*) _header;
-            struct List_Room* room=getRoom(header->room_id);
-            if (verifySession(header)==false){
-                int re=onError(fd, header->session, RES_ROOM_INFO_FAIL,"Player Verify Error");
-                if(re<=0) corruptedClose(fd);
-            }else{
-                struct Node_Player* player=&(room->players[header->player_id]);
-
-                printf("Room %d '%s' Info Send\n",header->room_id,player->name);
-                
-
-                int re=sendGameInfo(room,player->player_id,RES_JOIN_SUCC);
-                if(re<=0) corruptedClose(fd);
-
-                
-            } 
+            Room_Info(&res,&reslen,(struct Header_Room_Info*)_header);
             break;
         }
         case CMD_START_GAME :{
-            struct Header_Room_Info* header=(struct Header_Room_Info*) _header;
-            struct List_Room* room=getRoom(header->room_id);
-            if (verifySession(header)==false){
-                int re=onError(fd, header->session, RES_ROOM_INFO_FAIL,"Player Verify Error");
-                if(re<=0) corruptedClose(fd);
-            }else if(room->gameState!=STATE_GAME_NOT_GOING){
-                int re=onError(fd, header->session, RES_START_GAME_FAIL,"Game Already Start");
-                if(re<=0) corruptedClose(fd);
-            }
-            else{
-                struct Node_Player* player=&(room->players[header->player_id]);
-
-                printf("Room %d '%s' Game Send\n",header->room_id,player->name);
-                
-                for(int i=0;i<room->player_cnt;++i){
-                    int re=sendGameInfo(room,i,RES_START_GAME_SUCC);
-                    if(re<=0) corruptedClose(fd);
-                }
-                
-                
-            } 
+            Start_Game(&res,&reslen,(struct Header_Start_Game*)_header);
             break;
+        }case CMD_ACTION:{
+            Add_Action(&res,&reslen,(struct Header_Action*)_header);
+            break;
+        }case CMD_QUIT:{
+            Quit_Game(&res,&reslen,(struct Header_Quit*)_header);
+            break;
+        }case CMD_MAP_INFO:{
+            Map_Info(&res,&reslen,(struct Header_Map_Info*)_header);
+            break;
+        }case CMD_PLAYER_INFO:{
+            Player_Info(&res,&reslen,(struct Header_Player_Info*)_header);
         }
 
         default:{
             //CODE ERROR
-
-
+            printf("Code Error: %d\n",_header->code);
+            onError((struct Header_Error_Res**)&res,&reslen,0,RES_RECV_FAIL,"Code Error");
         }
     }
-
-
-
+    int re=sendData(fd,res,reslen);
+    free(res);
+    if(re<=0) corruptedClose(fd);
 
 }
 
@@ -296,14 +160,12 @@ int main(int argc, char **argv)
     Listen(listenfd, LISTENQ);
 
     maxfd = listenfd;	
-    playerCnt = 0;
-    memset(players,0,sizeof(players));
-    InitList(listRoom);
+    fdCnt = 0;
 
     FD_ZERO(&allset);
 	FD_SET(listenfd, &allset);
 
-
+    srand(time(NULL));
 
 	for(; ; ) {
 		rset = allset;		
@@ -311,11 +173,11 @@ int main(int argc, char **argv)
 
 		if (FD_ISSET(listenfd, &rset) ) {	
 			clilen = sizeof(cliaddr);
-            if(playerCnt<MAX_PLAYER){
+            if(fdCnt<MAX_PLAYER){
                 connfd = Accept(listenfd, (SA *) &cliaddr, &clilen);
 			    if(connfd>0){
                     FD_SET(connfd,&allset);
-                    ++playerCnt;
+                    ++fdCnt;
                     maxfd=max(maxfd,connfd);
 
                     printf("CONNFD:%d\n",connfd);
@@ -334,7 +196,7 @@ int main(int argc, char **argv)
                 int re=recvData(fd,&header,&len);
                 printf("RECV:%d\n",re);
                 if(re<=0){
-                    re=onError(fd, 0, RES_RECV_FAIL,"Recv Data Error");
+                    onError((struct Header_Error_Res**)&header, &len,0, RES_RECV_FAIL,"Recv Data Error");
                     corruptedClose(fd);
                 }else{
                     commandHandler(fd,header,len);

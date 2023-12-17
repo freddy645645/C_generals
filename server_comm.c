@@ -51,7 +51,7 @@ int recvData(int fd,struct Header_Base ** header, size_t* len){
     struct Header_Base* data=calloc(1,Len);
     memcpy(data,&base,HEADER_SIZE);
     if(Len!=HEADER_SIZE){
-        re=readn(fd,&base+HEADER_SIZE,Len-HEADER_SIZE);
+        re=readn(fd,((void *)(&base))+HEADER_SIZE,Len-HEADER_SIZE);
         printf("recvDataRest: %d\n",re);
         if(re+HEADER_SIZE!=Len) {
             free(data);

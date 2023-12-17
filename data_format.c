@@ -15,5 +15,4 @@ void Header_size_check(){
     static_assert ((sizeof(struct Header_Map_Info_Res)) == HEADER_SIZE, "Header_Map_Info_Res size Error");
     static_assert ((sizeof(struct Header_Player_Info)) == HEADER_SIZE, "Header_Player_Info size Error");
     static_assert ((sizeof(struct Header_Player_Info_Res)) == HEADER_SIZE, "Header_Player_Info_Res size Error");
-    printf("done");
 }

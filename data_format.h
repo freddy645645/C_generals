@@ -1,8 +1,8 @@
 #ifndef DATA_FORMAT_INCLUDED
 #define DATA_FORMAT_INCLUDED
-#include "unp.h"
 #include <assert.h>
-
+#include <stdlib.h>
+#include <string.h>
 
 #define CMD_REGISTER 0x1
 #define CMD_JOIN     0x2
@@ -43,6 +43,9 @@
 #define PLAYER_STATE_ALIVE    0x0
 #define PLAYER_STATE_QUITED   0x1
 #define PLAYER_STATE_DEAD     0x2
+
+
+
 
 #define HEADER_SIZE 64
 
@@ -146,7 +149,7 @@ struct Action{
 struct Header_Action{
     int32_t code;
     int32_t session;
-    int32_t room_number;
+    int32_t room_id;
     int32_t player_id;
     
     int32_t num_Action;
@@ -164,7 +167,7 @@ struct Data_Action{
 struct Header_Action_Res{
     int32_t code;
     int32_t session;
-    int32_t room_number;
+    int32_t room_id;
     int32_t player_id;
     int32_t num_Action;
     int32_t unused[11];
@@ -177,7 +180,7 @@ struct Header_Action_Res{
 struct Header_Map_Info{
     int32_t code;
     int32_t session;
-    int32_t room_number;
+    int32_t room_id;
     int32_t player_id;
     int32_t game_state;
     int32_t unused[11];
@@ -191,7 +194,7 @@ struct Grid{
 struct Header_Map_Info_Res{
     int32_t code;
     int32_t session;
-    int32_t room_number;
+    int32_t room_id;
     int32_t player_id;
     
     int32_t sizeX;
@@ -213,7 +216,7 @@ struct Data_Map{
 struct Header_Player_Info{
     int32_t code;
     int32_t session;
-    int32_t room_number;
+    int32_t room_id;
     int32_t player_id;
     int32_t unused[12];
 }__attribute__ ((aligned (4)));
@@ -227,7 +230,7 @@ struct Player_Info{
 struct Header_Player_Info_Res{
     int32_t code;
     int32_t session;
-    int32_t room_number;
+    int32_t room_id;
     int32_t player_id;
     
     
