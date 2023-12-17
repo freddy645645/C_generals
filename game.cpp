@@ -190,7 +190,7 @@ void Join_Room(struct Header_Base** res ,size_t* reslen,struct Header_Room_Join*
 }
 void Start_Game(struct Header_Base** res,size_t* reslen,struct Header_Start_Game* header){
     struct Node_Room* room=getRoom(header->room_id);
-    if (room==NULL||verifySession((Header_Room_Info*)header)==false){
+    if (verifySession((Header_Room_Info*)header)==false){
         onError((Header_Error_Res**)res,reslen,header->session, RES_START_GAME_FAIL,"Player Verify Error");
         return;
     }
@@ -211,7 +211,7 @@ void Start_Game(struct Header_Base** res,size_t* reslen,struct Header_Start_Game
 }
 void Room_Info(Header_Base** res,size_t* reslen,Header_Room_Info* header ){
     struct Node_Room* room=getRoom(header->room_id);
-    if (room==NULL||verifySession((Header_Room_Info*)header)==false){
+    if (verifySession((Header_Room_Info*)header)==false){
         onError((Header_Error_Res**)res,reslen,header->session, RES_ROOM_INFO_FAIL,"Player Verify Error");
         return;
     }
@@ -228,7 +228,7 @@ void Room_Info(Header_Base** res,size_t* reslen,Header_Room_Info* header ){
 
 void Quit_Game(Header_Base** res,size_t* reslen,Header_Quit* header){
     struct Node_Room* room=getRoom(header->room_id);
-    if (room==NULL||verifySession((Header_Room_Info*)header)==false){
+    if (verifySession((Header_Room_Info*)header)==false){
         onError((Header_Error_Res**)res,reslen,header->session, RES_QUIT_FAIL,"Player Verify Error");
         return;
     }
@@ -249,7 +249,7 @@ void Quit_Game(Header_Base** res,size_t* reslen,Header_Quit* header){
 }
 void Add_Action(Header_Base** res,size_t* reslen,Header_Action* header){
     struct Node_Room* room=getRoom(header->room_id);
-    if (room==NULL||verifySession((Header_Room_Info*)header)==false){
+    if (verifySession((Header_Room_Info*)header)==false){
         onError((Header_Error_Res**)res,reslen,header->session, RES_ACTION_FAIL,"Player Verify Error");
         return;
     }
@@ -285,17 +285,122 @@ void Add_Action(Header_Base** res,size_t* reslen,Header_Action* header){
     room->room_mutex.unlock();
     return;    
 }
-
-void Map_Info(Header_Base** res,size_t* reslen,Header_Map_Info* data){
+void mapMask(Grid* masked_map,Node_Room* room,Node_Player* player){
+    for(int i=0;i<room->sizeX;++i)
+        for(int j=0;j<room->sizeY;++j){
+            bool flag=false;
+            for(int dx=-1;dx<=1;++dx)
+                for(int dy=-1;dy<=1;++dy){
+                    if(i+dx<0||i+dx>=room->sizeX||j+dy<0||j+dy>=room->sizeY) continue;
+                    if(room->game_map[i+dx][j+dy].owner==player->player_id) flag=true;
+                }
+            if(flag||room->game_map[i][j].type==GAME_MAP_MOUNTAIN) 
+                masked_map[i*room->sizeY+j]=room->game_map[i][j];
+            else 
+                masked_map[i*room->sizeY+j].type=GAME_MAP_FOG;
+        }
+    return;
 
 }
-void Player_Info(Header_Base** res,size_t* reslen,Header_Player_Info* data){
+void Map_Info(Header_Base** res,size_t* reslen,Header_Map_Info* header){
+    struct Node_Room* room=getRoom(header->room_id);
+    if (verifySession((Header_Room_Info*)header)==false){
+        onError((Header_Error_Res**)res,reslen,header->session, RES_MAP_INFO_FAIL,"Player Verify Error");
+        return;
+    }
+    room->room_mutex.lock();
+    struct Node_Player* player=&(room->players[header->player_id]);
+    if(room->game_state!=GAME_STATE_INGAME){
+        onError((Header_Error_Res**)res,reslen,header->session, RES_MAP_INFO_FAIL,"Game not Going");
+        room->room_mutex.unlock();
+        return;
+    }
+    if(player->player_state!=PLAYER_STATE_ALIVE){
+        onError((Header_Error_Res**)res,reslen,header->session, RES_MAP_INFO_FAIL,"You are Died/Quited");
+        room->room_mutex.unlock();
+        return;
+    }
+    printf("Room %d '%s' get Map Info\n",header->room_id,player->name);
+    
+    int lenNeed=HEADER_SIZE+sizeof(Grid)*(max(0,room->sizeX*room->sizeY-2));
+    Header_Map_Info_Res* tmp=(Header_Map_Info_Res*)calloc(1,lenNeed);
+    tmp->code=RES_MAP_INFO_SUCC;
+    tmp->session=header->session;
+    tmp->room_id=header->room_id;
+    tmp->player_id=header->player_id;
 
+    tmp->sizeX=room->sizeX;
+    tmp->sizeY=room->sizeY;
+    tmp->round=room->round;
+    tmp->game_state=room->game_state;
+    mapMask(tmp->grid,room,player);    
+
+    *reslen=lenNeed;
+    *res=(Header_Base*)tmp;
+    
+    room->room_mutex.unlock();
+    return;    
+}
+
+void getStat(Player_Info* info,Node_Room* room,Node_Player* player){
+    int n=room->player_number;
+    memset(info,0,n*sizeof(Player_Info));
+    for(int i=0;i<room->sizeX;++i)
+        for(int j=0;j<room->sizeY;++j)
+            if(room->game_map[i][j].owner>=0){
+                info[room->game_map[i][j].owner].grid_num+=1;
+                info[room->game_map[i][j].owner].soldier_num+=room->game_map[i][j].soldier_num;
+            }
+    for(int i=0;i<n;++i)
+        info[i].player_state=room->players[i].player_state;
+    return;
+}
+
+void Get_Player_Info(Header_Base** res,size_t* reslen,Header_Player_Info* header){
+    struct Node_Room* room=getRoom(header->room_id);
+    if (verifySession((Header_Room_Info*)header)==false){
+        onError((Header_Error_Res**)res,reslen,header->session, RES_PLAYER_INFO_FAIL,"Player Verify Error");
+        return;
+    }
+    room->room_mutex.lock();
+    struct Node_Player* player=&(room->players[header->player_id]);
+    if(room->game_state!=GAME_STATE_INGAME){
+        onError((Header_Error_Res**)res,reslen,header->session, RES_PLAYER_INFO_FAIL,"Game not Going");
+        room->room_mutex.unlock();
+        return;
+    }
+    if(player->player_state!=PLAYER_STATE_ALIVE){
+        onError((Header_Error_Res**)res,reslen,header->session, RES_PLAYER_INFO_FAIL,"You are Died/Quited");
+        room->room_mutex.unlock();
+        return;
+    }
+    
+    
+    printf("Room %d '%s' get User Info\n",header->room_id,player->name);
+    
+    int lenNeed=HEADER_SIZE+sizeof(Grid)*(max(0,room->player_number-2));
+    Header_Player_Info_Res* tmp=(Header_Player_Info_Res*)calloc(1,lenNeed);
+    tmp->code=RES_MAP_INFO_SUCC;
+    tmp->session=header->session;
+    tmp->room_id=header->room_id;
+    tmp->player_id=header->player_id;
+    tmp->game_state=room->game_state;
+    //getStat(tmp->player,room,player);
+    *reslen=lenNeed;
+    *res=(Header_Base*)tmp;
+    
+    room->room_mutex.unlock();
+    return;    
 }
 
 
 
 void GameHandler(){
+    while(true){
+        
 
+        const int microseconds=500;
+        usleep(microseconds);
+    }
    
 }

@@ -45,7 +45,11 @@
 #define PLAYER_STATE_DEAD     0x2
 
 
+#define GAME_MAP_FOG        -2
+#define GAME_MAP_MOUNTAIN   -3
+#define GAME_MAP_CASTLE     -4
 
+#define GAME_MAP_OWN_NEUTRAL   -1
 
 #define HEADER_SIZE 64
 
@@ -188,7 +192,7 @@ struct Header_Map_Info{
 struct Grid{
     int32_t type;
     int32_t owner;
-    int32_t soldiers_num;
+    int32_t soldier_num;
     int32_t unused;
 }__attribute__ ((aligned (4)));
 struct Header_Map_Info_Res{
@@ -223,7 +227,7 @@ struct Header_Player_Info{
 struct Player_Info{
     int32_t grid_num;
     int32_t soldier_num;
-    int32_t state;
+    int32_t player_state;
     int32_t unused;
 }__attribute__ ((aligned (4)));
 

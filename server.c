@@ -119,7 +119,7 @@ void commandHandler(int fd,struct Header_Base* _header, size_t len){
             Map_Info(&res,&reslen,(struct Header_Map_Info*)_header);
             break;
         }case CMD_PLAYER_INFO:{
-            Player_Info(&res,&reslen,(struct Header_Player_Info*)_header);
+            Get_Player_Info(&res,&reslen,(struct Header_Player_Info*)_header);
         }
 
         default:{
