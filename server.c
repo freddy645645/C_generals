@@ -166,7 +166,14 @@ int main(int argc, char **argv)
 	FD_SET(listenfd, &allset);
 
     srand(time(NULL));
-
+    printf("thread start\n");
+    pthread_t gameHandle; // 宣告 pthread 變數
+    int pthread_res=pthread_create(&gameHandle, NULL, GameHandler, NULL);
+    if(pthread_res!=0){
+        printf("GameHandler start fail");
+    }else{
+        printf("GameHandler Start");
+    }
 	for(; ; ) {
 		rset = allset;		
 		nready = Select(maxfd+1, &rset, NULL, NULL, NULL);

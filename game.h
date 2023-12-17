@@ -15,7 +15,7 @@ void Add_Action(struct Header_Base**,size_t*, struct Header_Action*);
 void Quit_Game(struct Header_Base**,size_t*, struct Header_Quit*);
 void Map_Info(struct Header_Base**,size_t*,struct Header_Map_Info*);
 void Get_Player_Info(struct Header_Base**,size_t*,struct Header_Player_Info*);
-void GameHandler();
+void* GameHandler(void *);
 void onError(struct Header_Error_Res** ,size_t* ,int , int ,const char * );
 
 

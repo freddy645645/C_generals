@@ -100,6 +100,13 @@ bool verifySession(struct Header_Room_Info* header){
         return false;
     return true;
 }
+
+void genMap(Node_Room* room){
+    
+}
+void delended(){
+    
+}
 void Register_Room(struct Header_Base** res,size_t* reslen,struct Header_Room_Register* header){
     
     struct Node_Room* room=getRoom(header->room_id);
@@ -118,7 +125,7 @@ void Register_Room(struct Header_Base** res,size_t* reslen,struct Header_Room_Re
     room->sizeX=header->sizeX;
     room->sizeY=header->sizeY;
     room->game_map=vector<vector<struct Grid>>(room->sizeX,vector<struct Grid>(room->sizeY));
-
+    genMap(room);
     memcpy(room->passwd,header->passwd,16);
 
     int player_id=-1;
@@ -393,14 +400,21 @@ void Get_Player_Info(Header_Base** res,size_t* reslen,Header_Player_Info* header
     return;    
 }
 
+void next_round(Node_Room* room){
 
+}
 
-void GameHandler(){
+void* GameHandler(void *arg){
     while(true){
-        
+        list_mutex.lock();
+        for(auto room:Room_List){
+            next_round(room);
+        }
+        list_mutex.unlock();
+        delended();
 
-        const int microseconds=500;
-        usleep(microseconds);
+        //const int microseconds=500*1000;
+        sleep(1);
     }
    
 }
