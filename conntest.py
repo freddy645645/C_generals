@@ -9,9 +9,9 @@ for i in range(0,len(res),4):
     print(res[i:i+4],u32(res[i:i+4],endian='big'))
 """
 
-cmd_reg=p32(0x1,endian='big')+p32(0x0,endian='big')+p32(0x8763,endian='big')+p32(0x5,endian='big')+\
-        p32(0x20,endian='big')+p32(0x20,endian='big')+b"I am first".ljust(16,b'\x00')+b"P@55w0rd".ljust(16,b'\x00')+b'\x00'*8
-print(len(cmd_reg))
+cmd_reg=p32(64*(2**16)+0x1,endian='big')+p32(0x0,endian='big')+p32(0x8763,endian='big')+p32(0x5,endian='big')+\
+        p32(0x20,endian='big')+p32(0x20,endian='big')+b'\x00'*8+b"I am first".ljust(16,b'\x00')+b"P@55w0rd".ljust(16,b'\x00')
+assert len(cmd_reg)==64
 print(cmd_reg)
 r.send(cmd_reg)
 
@@ -28,11 +28,11 @@ for i in range(0,len(res),4):
 
 """
 
-cmd_join=p32(0x2,endian='big')+p32(0x0,endian='big')+p32(0x8763,endian='big')+p32(0x5,endian='big')+\
-        b"I am Second".ljust(16,b'\x00')+b"P@55w0rd".ljust(16,b'\x00')
+cmd_join=p32(64*(2**16)+0x2,endian='big')+p32(0x0,endian='big')+p32(0x8763,endian='big')+p32(0x5,endian='big')+\
+        b'\x00'*16+b"I am Second".ljust(16,b'\x00')+b"P@55w0rd".ljust(16,b'\x00')
 print(len(cmd_join))
 print(cmd_join)
-cmd_join=cmd_join.ljust(64,b'\x00')
+assert len(cmd_join)==64
 r.send(cmd_join)
         
 res_join=r.recv()
@@ -43,7 +43,7 @@ for i in range(0,len(res_join),4):
 
     
 raw_input()
-cmd_info=p32(0x4,endian='big')+res_join[4:4+4*3]
+cmd_info=p32(64*(2**16)+0x4,endian='big')+res_join[4:4+4*3]
 cmd_info=cmd_info.ljust(64,b'\x00')
 print(cmd_info)
 r.send(cmd_info)

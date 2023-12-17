@@ -8,12 +8,11 @@
 #define CMD_JOIN     0x2
 #define CMD_START_GAME 0x3
 #define CMD_ROOM_INFO  0x4
-
-/*
 #define CMD_ACTION     0x5
-#define CMD_MAP        0x6
+#define CMD_MAP_INFO   0x6
 #define CMD_QUIT       0x7
-*/
+#define CMD_PLAYER_INFO 0x8
+
 
 #define RES_REGISTER_SUCC      0xA01
 #define RES_REGISTER_FAIL      0xF01
@@ -23,9 +22,28 @@
 #define RES_START_GAME_FAIL    0xF03
 #define RES_ROOM_INFO_SUCC     0xA04
 #define RES_ROOM_INFO_FAIL     0xF04
+#define RES_ACTION_SUCC        0xA05
+#define RES_ACTION_FAIL        0xF05
+#define RES_MAP_INFO_SUCC      0xA06
+#define RES_MAP_INFO_FAIL      0xF06
+#define RES_QUIT_SUCC          0xA07
+#define RES_QUIT_FAIL          0xF07
+#define RES_PLAYER_INFO_SUCC   0xA08
+#define RES_PLAYER_INFO_FAIL   0xF08
 
 
-#define RES_RECV_FAIL          0xF05
+#define RES_RECV_FAIL          0xF09
+#define HEADER_SIZE 64
+
+
+#define GAME_STATE_WAIT        0x00
+#define GAME_STATE_INGAME      0x01
+#define GAME_STATE_END         0x02
+
+#define PLAYER_STATE_ALIVE    0x0
+#define PLAYER_STATE_QUITED   0x1
+#define PLAYER_STATE_DEAD     0x2
+
 #define HEADER_SIZE 64
 
 struct Header_Base{
@@ -36,76 +54,187 @@ struct Header_Base{
 
 
 
+// on Error: 0xFxx
+// ok: 0xAxx
 struct Header_Error_Res{
     int32_t code;
     int32_t session;
-    char errmsg[(HEADER_SIZE-2*sizeof(int32_t))];
+    int32_t unused[6];
+    char errmsg[32];
 }__attribute__ ((aligned (4)));
+
 
 
 struct Header_Room_Register{
-    int code;
-    int session; 
-    int room_id;
-    int player_number;
-    int sizeX;
-    int sizeY;
+    int32_t code;
+    int32_t session; 
+    int32_t room_id;
+    int32_t player_number;
+    int32_t sizeX;
+    int32_t sizeY;
+    int32_t unused[2];
+
     char name[16];
     char passwd[16];
-    int unused[2];
 }__attribute__ ((aligned (4)));
-
-
+ 
 struct Header_Room_Join{
-    int code;
-    int session; 
-    int room_id;
-    int player_id;
+    int32_t code;
+    int32_t session; 
+    int32_t room_id;
+
+    int32_t unused[5];
+
     char name[16];
     char passwd[16];
-    int unused[4];
 }__attribute__ ((aligned (4)));   
 
 struct Header_Room_Info{
-    int code;
-    int session;
-    int room_id;
-    int player_id;
-    int unused[12];
-}__attribute__ ((aligned (4)));
-
-struct Header_Room_Info_Res{
-    int code;
-    int session;
-    int room_id;
-    int player_id;
-    
-    int player_number;
-    int sizeX;
-    int sizeY;
-
-    int player_cnt;
-    char player_names[2][16];
+    int32_t code;
+    int32_t session;
+    int32_t room_id;
+    int32_t player_id;
+    int32_t unused[12];
 }__attribute__ ((aligned (4)));
 
 struct Header_Start_Game{
     int32_t code;
     int32_t session;
-    int room_id;
-    int player_id;
-    int unused[12];
+    int32_t room_id;
+    int32_t player_id;
+    int32_t unused[12];
 }__attribute__ ((aligned (4)));
 
-/*
-struct Data_Room_Info_Res{
-    struct Header_Room_Info_Res;
-    char player_names[player_cnt-2];
+struct Header_Room_Info_Res{
+    int32_t code;
+    int32_t session;
+    int32_t room_id;
+    int32_t player_id;
+    
+    int32_t player_number;
+    int32_t sizeX;
+    int32_t sizeY;
 
+    int32_t game_state;
+    char player_names[2][16];
+}__attribute__ ((aligned (4)));
+/*
+struct Data_Game_info_Res{
+    Header_Room_Info_Res;
+    char names[player_numbers][16];
 }
 */
-struct Grid{
 
+struct Header_Quit{
+    int32_t code;
+    int32_t session;
+    int32_t room_id;
+    int32_t player_id;
+    int32_t unused[12];
+}__attribute__ ((aligned (4)));
+//struct Header_Quit_Res == Header_Error_Res
+// code and message  different
+
+
+
+struct Action{
+    int32_t x;
+    int32_t y;
+    int32_t all_or_half;
+    int32_t way;
+}__attribute__ ((aligned (4)));
+struct Header_Action{
+    int32_t code;
+    int32_t session;
+    int32_t room_number;
+    int32_t player_id;
+    
+    int32_t num_Action;
+    int32_t unused[3];
+    struct Action action[2];
+}__attribute__ ((aligned (4)));
+
+
+/*
+struct Data_Action{
+    Header_Action Header;
+    Action action[num_Action-2];
 };
+*/
+struct Header_Action_Res{
+    int32_t code;
+    int32_t session;
+    int32_t room_number;
+    int32_t player_id;
+    int32_t num_Action;
+    int32_t unused[11];
+}__attribute__ ((aligned (4)));
+
+
+
+
+
+struct Header_Map_Info{
+    int32_t code;
+    int32_t session;
+    int32_t room_number;
+    int32_t player_id;
+    int32_t game_state;
+    int32_t unused[11];
+}__attribute__ ((aligned (4)));
+struct Grid{
+    int32_t type;
+    int32_t owner;
+    int32_t soldiers_num;
+    int32_t unused;
+}__attribute__ ((aligned (4)));
+struct Header_Map_Info_Res{
+    int32_t code;
+    int32_t session;
+    int32_t room_number;
+    int32_t player_id;
+    
+    int32_t sizeX;
+    int32_t sizeY;
+    int32_t round;
+    int32_t game_state;
+    struct Grid grid[2];
+}__attribute__ ((aligned (4)));
+/*
+struct Data_Map{
+    Header_map  header;
+    Grid [sizeX*sizeY-TBD];
+    
+}
+*/
+
+
+
+struct Header_Player_Info{
+    int32_t code;
+    int32_t session;
+    int32_t room_number;
+    int32_t player_id;
+    int32_t unused[12];
+}__attribute__ ((aligned (4)));
+struct Player_Info{
+    int32_t grid_num;
+    int32_t soldier_num;
+    int32_t state;
+    int32_t unused;
+}__attribute__ ((aligned (4)));
+
+struct Header_Player_Info_Res{
+    int32_t code;
+    int32_t session;
+    int32_t room_number;
+    int32_t player_id;
+    
+    
+    int32_t game_state;
+    int32_t unused[3];
+    struct Player_Info player[2];
+}__attribute__ ((aligned (4)));
 
 void Header_size_check();
 
