@@ -14,4 +14,4 @@ server_comm.o: server_comm.c
 game.o: game.cpp
 	${CXX} ${CFLAGS} -o $@ -c $^ ${LIBS} -fpermissive 
 clean:
-		rm -f ${PROGS} ${CLEANFILES}
+	rm -f ${PROGS} ${CLEANFILES}
