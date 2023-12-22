@@ -12,6 +12,6 @@ data_format.o: data_format.c
 server_comm.o: server_comm.c
 	${CC} ${CFLAGS} -o $@ -c $^ ${LIBS} 
 game.o: game.cpp
-	${CXX} ${CFLAGS} -o $@ -c $^ ${LIBS} -fpermissive 
+	${CXX} ${CFLAGS} -o $@ -c $^ ${LIBS} -fpermissive -fsanitize=address
 clean:
 	rm -f ${PROGS} ${CLEANFILES}

@@ -30,6 +30,8 @@ struct Node_Room{
     int sizeY;
     vector<vector<struct Grid>> game_map;
     char passwd[16];
+
+    void genMap();
 };
 mutex list_mutex;
 list<Node_Room*> Room_List;
@@ -101,8 +103,34 @@ bool verifySession(struct Header_Room_Info* header){
     return true;
 }
 
-void genMap(Node_Room* room){
+void Node_Room::genMap(){
+    const double percent_mountain=0.1,percent_castle=0.05;
+    vector<pair<int,int>> points;points.reserve(sizeX*sizeY);
+    for(int i=0;i<sizeX;++i)for(int j=0;j<sizeY;++j){
+        points.push_back({i,j});
+    }
+    auto rd = random_device {}; 
+    auto rng = default_random_engine { rd() };
+    shuffle(points.begin(), points.end(), rng);  
+    game_map.assign(sizeX,vector<Grid>(sizeY));
     
+    for(size_t i = 0;i<(size_t)player_number&&i<points.size();++i){
+        auto [x,y]=points[i];
+        game_map[x][y]=Grid(i,i,0);
+    }
+    uniform_real_distribution<double> uni(0,1);
+    for(size_t i=player_number;i<points.size();++i){
+        double res=uni(rng);
+        auto [x,y]=points[i];
+        if(res<percent_mountain){
+            game_map[x][y]=Grid(GAME_MAP_MOUNTAIN,GAME_MAP_OWN_NEUTRAL,0);
+        }else if(res<percent_mountain+percent_castle){
+            game_map[x][y]=Grid(GAME_MAP_CASTLE,GAME_MAP_OWN_NEUTRAL,0);
+        }else{
+            game_map[x][y]=Grid(GAME_MAP_SPACE,GAME_MAP_OWN_NEUTRAL,0);
+        }
+    }
+
 }
 void delended(){
     
@@ -125,7 +153,7 @@ void Register_Room(struct Header_Base** res,size_t* reslen,struct Header_Room_Re
     room->sizeX=header->sizeX;
     room->sizeY=header->sizeY;
     room->game_map=vector<vector<struct Grid>>(room->sizeX,vector<struct Grid>(room->sizeY));
-    genMap(room);
+    room->genMap();
     memcpy(room->passwd,header->passwd,16);
 
     int player_id=-1;
