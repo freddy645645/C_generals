@@ -49,8 +49,9 @@
 #define GAME_MAP_MOUNTAIN   -3
 #define GAME_MAP_CASTLE     -4
 #define GAME_MAP_SPACE      -5
-#define GAME_MAP_OWN_NEUTRAL   -1
+#define GAME_MAP_HOME       -6
 
+#define GAME_MAP_OWN_NEUTRAL   -1
 #define HEADER_SIZE 64
 
 struct Header_Base{

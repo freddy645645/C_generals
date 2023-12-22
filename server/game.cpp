@@ -32,6 +32,7 @@ struct Node_Room{
     char passwd[16];
 
     void genMap();
+    void next_round();
 };
 mutex list_mutex;
 list<Node_Room*> Room_List;
@@ -116,7 +117,7 @@ void Node_Room::genMap(){
     
     for(size_t i = 0;i<(size_t)player_number&&i<points.size();++i){
         auto [x,y]=points[i];
-        game_map[x][y]=Grid(i,i,0);
+        game_map[x][y]=Grid(GAME_MAP_HOME,i,0);
     }
     uniform_real_distribution<double> uni(0,1);
     for(size_t i=player_number;i<points.size();++i){
@@ -428,15 +429,61 @@ void Get_Player_Info(Header_Base** res,size_t* reslen,Header_Player_Info* header
     return;    
 }
 
-void next_round(Node_Room* room){
+void Node_Room::next_round(){
 
+    round=round+1;
+    const int castle_round_need=1;
+    const int space_round_need=25;
+    for(int x=0;x<sizeX;++x)for(int y=0;y<sizeY;++y){
+
+        if(round%castle_round_need==0 && game_map[x][y].type==GAME_MAP_HOME){
+            game_map[x][y].soldier_num+=1;
+        }
+        if(round%castle_round_need==0 && game_map[x][y].type==GAME_MAP_CASTLE){
+            game_map[x][y].soldier_num+=1;
+        }
+        if(round%space_round_need==0 && game_map[x][y].type==GAME_MAP_SPACE){
+            if(game_map[x][y].owner!=GAME_MAP_OWN_NEUTRAL)
+                game_map[x][y].soldier_num+=1;
+        }
+    }
+    const int dx[]={1,0,-1,0};
+    const int dy[]={0,1,0,-1};
+    auto pos_check=[&](int x,int y){
+        return x>=0&&x<sizeX&&y>=0&&y<sizeY;
+    };
+    for(int pid=0;pid<player_number;++pid){
+        if(!action_queue[pid].empty()){
+            Action act=action_queue[pid].front();
+            action_queue[pid].pop();
+            int cx=act.x;
+            int cy=act.y;
+            int nx=act.x+dx[act.way];
+            int ny=act.y+dy[act.way];
+            int half=act.all_or_half;
+            if(!pos_check(cx,cy)||!pos_check(nx,ny)) continue;
+            if(game_map[cx][cy].owner!=pid) continue;
+            int soldier_trans=half?(game_map[cx][cy].soldier_num/2):(min(0,game_map[cx][cy].soldier_num-1));
+            game_map[cx][cy].soldier_num-=soldier_trans;
+
+            if(game_map[nx][ny].owner!=game_map[cx][cy].owner){
+                if(soldier_trans>game_map[nx][ny].soldier_num){
+                    game_map[nx][ny].owner=pid;
+                    game_map[nx][ny].soldier_num=soldier_trans-game_map[nx][ny].soldier_num;                    
+                }else{
+                    game_map[nx][ny].soldier_num=game_map[nx][ny].soldier_num-soldier_trans;
+                }
+            }
+
+        }
+    }
 }
 
 void* GameHandler(void *arg){
     while(true){
         list_mutex.lock();
         for(auto room:Room_List){
-            next_round(room);
+            room->next_round();
         }
         list_mutex.unlock();
         delended();
