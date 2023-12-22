@@ -15,6 +15,7 @@ struct Node_Player{
     int room_id;
     int player_id;
     int player_state;
+    int homeX,homeY;
     char name[16];
 };
 struct Node_Room{
@@ -118,6 +119,8 @@ void Node_Room::genMap(){
     for(size_t i = 0;i<(size_t)player_number&&i<points.size();++i){
         auto [x,y]=points[i];
         game_map[x][y]=Grid(GAME_MAP_HOME,i,0);
+        players[i].homeX=x;
+        players[i].homeY=y;
     }
     uniform_real_distribution<double> uni(0,1);
     for(size_t i=player_number;i<points.size();++i){
@@ -477,6 +480,13 @@ void Node_Room::next_round(){
 
         }
     }
+
+    int player_alive=0;
+    for(int pid=0;pid<player_number;++pid)
+        if(game_map[players[pid].homeX][players[pid].homeY].owner!=pid)
+            players[pid].player_state=PLAYER_STATE_DEAD;
+        else if(players[pid].player_state==PLAYER_STATE_ALIVE)player_alive++;
+    if(player_alive<=1) game_state=GAME_STATE_END;
 }
 
 void* GameHandler(void *arg){
