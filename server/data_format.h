@@ -187,8 +187,7 @@ struct Header_Map_Info{
     int32_t session;
     int32_t room_id;
     int32_t player_id;
-    int32_t game_state;
-    int32_t unused[11];
+    int32_t unused[12];
 }__attribute__ ((aligned (4)));
 struct Grid{
     int32_t type;
