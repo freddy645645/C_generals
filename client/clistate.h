@@ -1,0 +1,4 @@
+#ifndef CLISTATE_INCLUDED
+#define CLISTATE_INCLUDED
+
+#endif
