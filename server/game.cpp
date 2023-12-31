@@ -508,9 +508,11 @@ void Node_Room::next_round(){
             int nx=act.x+dx[act.way];
             int ny=act.y+dy[act.way];
             int half=act.all_or_half;
-            if(!pos_check(cx,cy)||!pos_check(nx,ny)) continue;
+            cerr<<"ACT:  "<<pid<<"("<<cx<<" "<<cy<<"|"<<nx<<" "<<ny<<"|"<<half<<"+";
+            cerr<<game_map[cx][cy].owner<<"\n";
+            if(!pos_check(cx,cy)||!pos_check(nx,ny)||game_map[nx][ny].type==GAME_MAP_MOUNTAIN) continue;
             if(game_map[cx][cy].owner!=pid) continue;
-            int soldier_trans=half?(game_map[cx][cy].soldier_num/2):(min(0,game_map[cx][cy].soldier_num-1));
+            int soldier_trans=half?(game_map[cx][cy].soldier_num/2):(max(0,game_map[cx][cy].soldier_num-1));
             game_map[cx][cy].soldier_num-=soldier_trans;
 
             if(game_map[nx][ny].owner!=game_map[cx][cy].owner){
@@ -520,6 +522,8 @@ void Node_Room::next_round(){
                 }else{
                     game_map[nx][ny].soldier_num=game_map[nx][ny].soldier_num-soldier_trans;
                 }
+            }else{
+                game_map[nx][ny].soldier_num+=soldier_trans;
             }
 
         }

@@ -146,7 +146,10 @@ def showMap(gmap):
         for grid in row:
             print(f'{"#" if grid["owner"]==-1 or grid["type"]==GAME_MAP_FOG else grid["owner"]}',end=' ')
         print('')
+    ii=0
     for row in gmap:
+        print(f"{ii:3}",end=' ')
+        ii+=1
         for grid in row:
             type=typeslist[grid["type"]]
             snum=grid["snum"]
@@ -162,7 +165,14 @@ def MapInfo(r,sess,rid,pid):
     showMap(info["gmap"])
     return info
 
-
+def Action(r,sess,rid,pid,acts):
+    LL=len(acts)//4
+    if len(acts)<8:
+        acts+=[0]*(8-len(acts))
+    cmd_act=flat([CMD_ACTION,sess,rid,pid,LL,[0]*3,acts],endian='big',sign="signed")
+    res=Send_Recv(r,cmd_act)
+    print(f"ACT OK:{u32(res[32:36],endian='big')}")
+    return 
 if __name__=="__main__":
     r=remote('localhost',9880)
     rid=62
@@ -183,9 +193,15 @@ if __name__=="__main__":
     
     time.sleep(3)
     print('-------------')
-    MapInfo(r,998244353,p2["room_id"],-1)
-    MapInfo(r,p1["session"],p1["room_id"],p1["player_id"])
-    print('-------------')
-    MapInfo(r,p2["session"],p2["room_id"],p2["player_id"])
-    
+    while True:
+        MapInfo(r,998244353,p2["room_id"],-1)
+        MapInfo(r,p1["session"],p1["room_id"],p1["player_id"])
+        print('-------------')
+        MapInfo(r,p2["session"],p2["room_id"],p2["player_id"])
+        
+        acts=list(map(int,input('ACT P1:').split()))
+        if len(acts): Action(r,p1["session"],p1["room_id"],p1["player_id"],acts)
+        acts=list(map(int,input('ACT P2:').split()))
+        if len(acts): Action(r,p2["session"],p2["room_id"],p2["player_id"],acts)
+        
     r.close()
