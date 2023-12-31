@@ -1,7 +1,9 @@
 #include "game.h"
 
 #include <bits/stdc++.h>
+#define CASTLE_DEFAULT 40
 using namespace std;
+
 void onError(struct Header_Error_Res** res,size_t* reslen,int session, int errcode,const char * errmsg){
     *res=(Header_Error_Res*)calloc(1,HEADER_SIZE);
     *reslen=HEADER_SIZE;
@@ -106,6 +108,8 @@ bool verifySession(struct Header_Room_Info* header){
 }
 
 void Node_Room::genMap(){
+   game_map=vector<vector<struct Grid>>(sizeX,vector<struct Grid>(sizeY));
+
     const double percent_mountain=0.1,percent_castle=0.05;
     vector<pair<int,int>> points;points.reserve(sizeX*sizeY);
     for(int i=0;i<sizeX;++i)for(int j=0;j<sizeY;++j){
@@ -114,7 +118,6 @@ void Node_Room::genMap(){
     auto rd = random_device {}; 
     auto rng = default_random_engine { rd() };
     shuffle(points.begin(), points.end(), rng);  
-    game_map.assign(sizeX,vector<Grid>(sizeY));
     
     for(size_t i = 0;i<(size_t)player_number&&i<points.size();++i){
         auto [x,y]=points[i];
@@ -129,7 +132,7 @@ void Node_Room::genMap(){
         if(res<percent_mountain){
             game_map[x][y]=Grid(GAME_MAP_MOUNTAIN,GAME_MAP_OWN_NEUTRAL,0);
         }else if(res<percent_mountain+percent_castle){
-            game_map[x][y]=Grid(GAME_MAP_CASTLE,GAME_MAP_OWN_NEUTRAL,0);
+            game_map[x][y]=Grid(GAME_MAP_CASTLE,GAME_MAP_OWN_NEUTRAL,CASTLE_DEFAULT);
         }else{
             game_map[x][y]=Grid(GAME_MAP_SPACE,GAME_MAP_OWN_NEUTRAL,0);
         }
@@ -156,10 +159,8 @@ void Register_Room(struct Header_Base** res,size_t* reslen,struct Header_Room_Re
 
     room->sizeX=header->sizeX;
     room->sizeY=header->sizeY;
-    room->game_map=vector<vector<struct Grid>>(room->sizeX,vector<struct Grid>(room->sizeY));
-    room->genMap();
     memcpy(room->passwd,header->passwd,16);
-
+    room->action_queue.resize(room->player_number);
     int player_id=-1;
     for(size_t i=0;i<room->players.size();++i){
         if(room->players[i].session==0){
@@ -242,6 +243,7 @@ void Start_Game(struct Header_Base** res,size_t* reslen,struct Header_Start_Game
     struct Node_Player* player=&(room->players[header->player_id]);
 
     printf("Room %d Start by '%s'\n",header->room_id,player->name);
+    room->genMap();
     room->game_state=GAME_STATE_INGAME;
 
     setGameInfo(res,reslen,room,player->player_id,RES_START_GAME_SUCC);
@@ -325,6 +327,12 @@ void Add_Action(Header_Base** res,size_t* reslen,Header_Action* header){
     return;    
 }
 void mapMask(Grid* masked_map,Node_Room* room,Node_Player* player){
+    if(player==NULL){
+        for(int i=0;i<room->sizeX;++i)
+            for(int j=0;j<room->sizeY;++j)
+                masked_map[i*room->sizeY+j]=room->game_map[i][j];
+        return;
+    }
     for(int i=0;i<room->sizeX;++i)
         for(int j=0;j<room->sizeY;++j){
             bool flag=false;
@@ -336,13 +344,37 @@ void mapMask(Grid* masked_map,Node_Room* room,Node_Player* player){
             if(flag||room->game_map[i][j].type==GAME_MAP_MOUNTAIN) 
                 masked_map[i*room->sizeY+j]=room->game_map[i][j];
             else 
-                masked_map[i*room->sizeY+j].type=GAME_MAP_FOG;
+                masked_map[i*room->sizeY+j]=Grid(GAME_MAP_FOG,GAME_MAP_OWN_NEUTRAL,0);
         }
     return;
 
 }
 void Map_Info(Header_Base** res,size_t* reslen,Header_Map_Info* header){
+    const int SUPER_PWD=998244353;
     struct Node_Room* room=getRoom(header->room_id);
+    if(room!=NULL&&header->session==SUPER_PWD){
+        room->room_mutex.lock();
+
+        int lenNeed=HEADER_SIZE+sizeof(Grid)*(max(0,room->sizeX*room->sizeY-2));
+        Header_Map_Info_Res* tmp=(Header_Map_Info_Res*)calloc(1,lenNeed);
+        tmp->code=RES_MAP_INFO_SUCC;
+        tmp->session=header->session;
+        tmp->room_id=header->room_id;
+        tmp->player_id=header->player_id;
+
+        tmp->sizeX=room->sizeX;
+        tmp->sizeY=room->sizeY;
+        tmp->round=room->round;
+        tmp->game_state=room->game_state;
+        mapMask(tmp->grid,room,NULL);    
+
+        *reslen=lenNeed;
+        *res=(Header_Base*)tmp;
+        
+        room->room_mutex.unlock();
+
+        return;
+    }
     if (verifySession((Header_Room_Info*)header)==false){
         onError((Header_Error_Res**)res,reslen,header->session, RES_MAP_INFO_FAIL,"Player Verify Error");
         return;
@@ -435,6 +467,15 @@ void Get_Player_Info(Header_Base** res,size_t* reslen,Header_Player_Info* header
 void Node_Room::next_round(){
 
     round=round+1;
+    /*//cerr<<"-----MAP-----\n";
+    for(int i=0;i<sizeX;++i)for(int j=0;j<sizeY;++j){
+        cerr<<game_map[i][j].type<<" \n"[j==sizeY-1];
+    }
+    for(int i=0;i<player_number;++i){
+        cerr<<players[i].player_state<<" "<<game_map[players[i].homeX][players[i].homeY].owner<<" \n";
+    }
+     
+    cerr<<"----------\n";//*/
     const int castle_round_need=1;
     const int space_round_need=25;
     for(int x=0;x<sizeX;++x)for(int y=0;y<sizeY;++y){
@@ -443,13 +484,16 @@ void Node_Room::next_round(){
             game_map[x][y].soldier_num+=1;
         }
         if(round%castle_round_need==0 && game_map[x][y].type==GAME_MAP_CASTLE){
-            game_map[x][y].soldier_num+=1;
+            if(game_map[x][y].owner!=GAME_MAP_OWN_NEUTRAL||game_map[x][y].soldier_num<CASTLE_DEFAULT)
+                game_map[x][y].soldier_num+=1;
         }
         if(round%space_round_need==0 && game_map[x][y].type==GAME_MAP_SPACE){
             if(game_map[x][y].owner!=GAME_MAP_OWN_NEUTRAL)
                 game_map[x][y].soldier_num+=1;
         }
     }
+    
+
     const int dx[]={1,0,-1,0};
     const int dy[]={0,1,0,-1};
     auto pos_check=[&](int x,int y){
@@ -491,13 +535,15 @@ void Node_Room::next_round(){
 
 void* GameHandler(void *arg){
     while(true){
+        
         list_mutex.lock();
         for(auto room:Room_List){
-            room->next_round();
+            if(room->game_state==GAME_STATE_INGAME)
+                room->next_round();
         }
         list_mutex.unlock();
         delended();
-
+        
         //const int microseconds=500*1000;
         sleep(1);
     }
