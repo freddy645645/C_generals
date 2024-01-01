@@ -13,29 +13,14 @@ void connect_screen() {
     // Connect to Server
     clear_screen();
 
-    char ip[BUF_SIZE], buf[BUF_SIZE];
-    int port;
+    char ip[BUF_SIZE], port[BUF_SIZE];
     print_at("Enter Server IP:", 1, 1);
     read_at(ip, 1, 17);
     print_at("Enter Port Number:", 2, 1);
-    read_at(buf, 2, 19);
-    port = atoi(buf);
+    read_at(port, 2, 19);
 
-    struct sockaddr_in servaddr;
-    SOCKFD = socket(AF_INET, SOCK_STREAM, 0);
-    memset(&servaddr, 0, sizeof(servaddr));
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_port = htons(port);
-	inet_pton(AF_INET, ip, &servaddr.sin_addr);
-    int n;
-	if ((n = connect(SOCKFD, (struct sockaddr *) &servaddr, sizeof(servaddr))) == 0) {
-        // success
-        print_loading("Connecing ", 3, 1);
-    }
-    else {
-        print_at("BAD", 3, 1);
-        exit(1);
-    }
+    connect_server(ip, port);
+    print_loading("Connecing ", 3, 1);
 
     fflush(stdout);
     sleep(1);

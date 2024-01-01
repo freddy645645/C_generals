@@ -1,6 +1,7 @@
 #ifndef CLISCREEN_INCLUDED
 #define CLISCREEN_INCLUDED
 
+#include "data_format.h"
 #include <sys/ioctl.h>
 
 #include <stdio.h>
