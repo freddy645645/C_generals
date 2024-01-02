@@ -83,7 +83,7 @@ void recv_data(int fd, struct Header_Base *header, size_t *len){
 
     if(dataLen != HEADER_SIZE){
         status_mes("reading extra data");
-        re = read(fd, ((void *)(&base))+HEADER_SIZE, dataLen-HEADER_SIZE);
+        re = read(fd, ((void *)(&data))+HEADER_SIZE, dataLen-HEADER_SIZE);
         if(re+HEADER_SIZE != dataLen) {
             free(data);
             error_mes("recv_data data length error");
