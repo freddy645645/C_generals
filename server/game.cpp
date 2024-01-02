@@ -33,7 +33,7 @@ struct Node_Room{
     int sizeY;
     vector<vector<struct Grid>> game_map;
     char passwd[16];
-
+    time_t start = time(NULL);
     void genMap();
     void next_round();
 };
@@ -65,20 +65,7 @@ Node_Room* addRoom(int room_id){
     list_mutex.unlock();
     return room;
 }
-void delRoom(int room_id){
-    list_mutex.lock();
-    for (std::list<Node_Room*>::iterator it = Room_List.begin(); it != Room_List.end(); it++) 
-        if((*it)->room_id==room_id){
-            delete *it;
-            Room_List.erase(it);
 
-            break;
-        }
-    
-    list_mutex.unlock();
-    return;
-
-}
 void setGameInfo(struct Header_Base** res,size_t* reslen, struct Node_Room* room,int player_id,int code){
     struct Node_Player* player=&(room->players[player_id]);
     size_t len=HEADER_SIZE+16*(max(0,room->player_number-2));
@@ -140,7 +127,24 @@ void Node_Room::genMap(){
 
 }
 void delended(){
+    list_mutex.lock();
+    auto end = time(NULL);
+    map<int,int> RoomLinger;
+    RoomLinger[GAME_STATE_WAIT]=600;
+    RoomLinger[GAME_STATE_INGAME]=1800;
+    RoomLinger[GAME_STATE_END]=20;
+
     
+    for (std::list<Node_Room*>::iterator it = Room_List.begin(); it != Room_List.end(); it++) {
+        auto start=(*it)->start;
+        time_t elapsed = (end - start);
+        if(elapsed>RoomLinger[(*it)->game_state]){
+            delete *it;
+            it=Room_List.erase(it);
+        }
+    }
+
+    list_mutex.unlock();
 }
 void Register_Room(struct Header_Base** res,size_t* reslen,struct Header_Room_Register* header){
     
@@ -352,7 +356,7 @@ void mapMask(Grid* masked_map,Node_Room* room,Node_Player* player){
 void Map_Info(Header_Base** res,size_t* reslen,Header_Map_Info* header){
     const int SUPER_PWD=998244353;
     struct Node_Room* room=getRoom(header->room_id);
-    if(room!=NULL&&header->session==SUPER_PWD){
+    if(room!=NULL&&(header->session==SUPER_PWD||room->game_state==GAME_STATE_END)){
         room->room_mutex.lock();
 
         int lenNeed=HEADER_SIZE+sizeof(Grid)*(max(0,room->sizeX*room->sizeY-2));
@@ -534,7 +538,10 @@ void Node_Room::next_round(){
         if(game_map[players[pid].homeX][players[pid].homeY].owner!=pid)
             players[pid].player_state=PLAYER_STATE_DEAD;
         else if(players[pid].player_state==PLAYER_STATE_ALIVE)player_alive++;
-    if(player_alive<=1) game_state=GAME_STATE_END;
+    if(player_alive<=1){
+        game_state=GAME_STATE_END;
+        start = time(NULL);
+    }
 }
 
 void* GameHandler(void *arg){
