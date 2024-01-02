@@ -175,7 +175,7 @@ def Action(r,sess,rid,pid,acts):
     return 
 if __name__=="__main__":
     r=remote('localhost',9880)
-    rid=62
+    rid=int(input('Rid:'))
     p1=Reg(r,rid,'first','passwd')
     
     p2=Join(r,rid,'third','passwd')
