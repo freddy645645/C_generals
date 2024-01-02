@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <memory.h>
 #include <stdio.h>
+#include <time.h>
 
 #define BUF_SIZE 1024
 
@@ -33,6 +34,7 @@
 void htonl_arr(int *data, int len);
 void ntohl_arr(int *data, int len);
 
+void status_mes(char *mes);
 void error_mes(char *mes);
 void error_check(struct Header_Error_Res *header);
 

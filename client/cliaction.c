@@ -10,10 +10,25 @@ void ntohl_arr(int * data,int len) {
         data[i]=ntohl(data[i]);
 }
 
-void error_mes(char *mes) {
-    FILE *fptr = fopen("error.log", "a");
-    fprintf(fptr, "%s", mes);
+void status_mes(char *mes) {
+    time_t rawtime;
+    struct tm *timeinfo;
+
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+
+    FILE *fptr = fopen("status.log", "a");
+    char curTime[BUF_SIZE];
+    strcpy(curTime, asctime(timeinfo));
+    curTime[strlen(curTime) - 1] = 0;
+    fprintf(fptr, "%s: %s\n", curTime, mes);
     fclose(fptr);
+}
+
+void error_mes(char *mes) {
+    char err[BUF_SIZE];
+    sprintf(err, "[Error] %s", mes) ;
+    status_mes(err);
     exit(1);
 }
 
@@ -37,15 +52,16 @@ void send_data(int fd, struct Header_Base *header, size_t len) {
         }
         default: {
             free(data);
-            error_mes("send_data error (not found header code)\n");
+            error_mes("send_data error (not found header code)");
         }
     }
 
+    status_mes("sending data");
     size_t re = write(fd ,data, len);
     free(data);
     
     if(re != len) {
-        error_mes("send_data error (send length error)\n");
+        error_mes("send_data error (send length error)");
     }
 
     return;
@@ -53,9 +69,11 @@ void send_data(int fd, struct Header_Base *header, size_t len) {
 
 void recv_data(int fd, struct Header_Base *header, size_t *len){
     struct Header_Base base;
+
+    status_mes("reading header");
     int re = read(fd, &base, HEADER_SIZE);
     if(re != HEADER_SIZE) {
-        error_mes("recv_data HEADER_SIZE error\n");
+        error_mes("recv_data HEADER_SIZE error");
     }
 
     int dataLen = getLen(ntohl(base.code));
@@ -64,10 +82,11 @@ void recv_data(int fd, struct Header_Base *header, size_t *len){
     memcpy(data, &base, HEADER_SIZE);
 
     if(dataLen != HEADER_SIZE){
+        status_mes("reading extra data");
         re = read(fd, ((void *)(&base))+HEADER_SIZE, dataLen-HEADER_SIZE);
         if(re+HEADER_SIZE != dataLen) {
             free(data);
-            error_mes("recv_data data length error\n");
+            error_mes("recv_data data length error");
         }
     }
 
@@ -80,7 +99,7 @@ void recv_data(int fd, struct Header_Base *header, size_t *len){
         }
         default:{
             free(data);
-            error_mes("recv_data code error\n");
+            error_mes("recv_data code error");
         }
     }
     clrLen(data->code);
@@ -99,6 +118,7 @@ void connect_server(char *ip, char *port) {
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons(atoi(port));
 	inet_pton(AF_INET, ip, &servaddr.sin_addr);
+    status_mes("connecting to server");
 	int n = connect(SOCKFD, (struct sockaddr *) &servaddr, sizeof(servaddr));
     if(n == -1) {
         error_mes("connect error");
@@ -121,6 +141,7 @@ void room_register(int roomID, int playerNum, int szX, int szY,
 
     struct Header_Room_Info_Res res;
     size_t resLen;
+    status_mes("registering the room");
     send_data(SOCKFD, (struct Header_Base*)(&myRegister), sizeof(myRegister));
     recv_data(SOCKFD, (struct Header_Base*)(&res), &resLen);
 
@@ -135,7 +156,7 @@ void room_register(int roomID, int playerNum, int szX, int szY,
 struct Header_Room_Info_Res room_info() {
 
     if(!SOCKFD) {
-        error_mes("not connect to server yet\n");
+        error_mes("not connect to server yet");
     }
 
     struct Header_Room_Info request;
@@ -149,6 +170,7 @@ struct Header_Room_Info_Res room_info() {
     request.room_id = ROOM_ID;
     request.player_id = PLAYER_ID;
 
+    status_mes("getting room info");
     send_data(SOCKFD, (struct Header_Base*)(&request), sizeof(request));
     recv_data(SOCKFD, (struct Header_Base*)(&result), &len);
 }

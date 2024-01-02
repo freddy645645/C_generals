@@ -45,10 +45,11 @@ void state_entry() {
     int ww = (w / 2 - 40 <= 0 ? 1 : w / 2 - 40);
 
     char name[BUF_SIZE];
+    char passwd[BUF_SIZE];
     char isNew[BUF_SIZE];
     char buf[BUF_SIZE];
     int roomID, playerNum;
-    int sizeX, sizeY, passwd;
+    int sizeX, sizeY;
 
 
     print_at(" ██████╗     ██████╗ ███████╗███╗   ██╗███████╗██████╗  █████╗ ██╗     ███████╗", hh, ww);
@@ -73,7 +74,7 @@ void state_entry() {
         roomID = atoi(buf);
     print_at("                        Enter Room Password:", hh + 12, ww);
         read_at(buf, hh + 12, ww + 45);
-        passwd = atoi(buf);
+        memcpy(buf, passwd, BUF_SIZE);
     print_at("                        Enter Max Player Number:", hh + 13, ww);
         read_at(buf, hh + 13, ww + 49);
         playerNum = atoi(buf);
@@ -85,7 +86,7 @@ void state_entry() {
         sizeY = atoi(buf);
 
         // Register 
-
+        room_register(roomID, playerNum, sizeX, sizeY, name, passwd);
     }
     else {
 
@@ -94,7 +95,7 @@ void state_entry() {
         roomID = atoi(buf);
     print_at("                        Enter Room Password:", hh + 12, ww);
         read_at(buf, hh + 12, ww + 45);
-        passwd = atoi(buf);
+        memcpy(buf, passwd, BUF_SIZE);
 
         // Join
     }

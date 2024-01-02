@@ -1,7 +1,7 @@
 all: client
 
 
-client: client.o data_format.o globals.o cliaction.o cliscreen.o 
+client: client.o data_format.o globals.o cliaction.o cliscreen.o  clistate.o
 	gcc -o $@ $^
 
 client.o: client.c
