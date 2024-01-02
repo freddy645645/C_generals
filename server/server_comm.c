@@ -50,15 +50,15 @@ int recvData(int fd,struct Header_Base ** header, size_t* len){
     printf("Len: %d\n",Len);
     struct Header_Base* data=calloc(1,Len);
     memcpy(data,&base,HEADER_SIZE);
-    if(Len!=HEADER_SIZE){
-        re=readn(fd,((void *)(&base))+HEADER_SIZE,Len-HEADER_SIZE);
+    if(Len>HEADER_SIZE){
+        re=readn(fd,((void *)(data))+HEADER_SIZE,Len-HEADER_SIZE);
         printf("recvDataRest: %d\n",re);
         if(re+HEADER_SIZE!=Len) {
             free(data);
             return -1;
         }
     }
-    int code=getCode(ntohl(base.code));
+    int code=getCode(ntohl(data->code));
     printf("Code: %d\n",code);
     switch(code){
         case CMD_REGISTER  :case CMD_JOIN  : {
@@ -70,8 +70,8 @@ int recvData(int fd,struct Header_Base ** header, size_t* len){
              break;
         }
         default:{
-            free(data);
             fprintf(stderr,"Code Error %d\n",ntohl(base.code));
+            free(data);
             return -2;
         }
     }

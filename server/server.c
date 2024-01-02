@@ -167,7 +167,7 @@ int main(int argc, char **argv)
 
     srand(time(NULL));
     printf("thread start\n");
-    pthread_t gameHandle; // 宣告 pthread 變數
+    pthread_t gameHandle; 
     int pthread_res=pthread_create(&gameHandle, NULL, GameHandler, NULL);
     if(pthread_res!=0){
         printf("GameHandler start fail");
