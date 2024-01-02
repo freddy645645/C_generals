@@ -55,6 +55,28 @@ def parseMap(res):
                 
     info["gmap"]=gmap
     return info
+    
+def prasePinfo(res,pnum):
+    code=u32(res[:4],endian='big',sign="signed")
+    if((code//256)==0xF):
+        return parseErr(res)
+    info={}
+    names=["code","session","room_id","player_id","game_state"]
+    for i in range(len(names)):
+        info[names[i]]=u32(res[4*i:4*i+4],endian='big',sign="signed")
+    
+    
+    base=8*4
+    pinfo=[{} for x in range(base,len(res),16)]
+    for st in range(base,len(res),16):
+        pname=["grid_num", "soldier_num", "player_state"]
+        ply=res[st:st+16]
+        for x in range(len(pname)):
+            pinfo[(st-base)//16][pname[x]]=u32(ply[4*x:4*x+4],endian='big',sign="signed")
+    info["player"]=pinfo
+        
+    return info
+    
 
 
 def Send_Recv(r,msg):
@@ -167,12 +189,21 @@ def MapInfo(r,sess,rid,pid):
 
 def Action(r,sess,rid,pid,acts):
     LL=len(acts)//4
+    
     if len(acts)<8:
         acts+=[0]*(8-len(acts))
     cmd_act=flat([CMD_ACTION,sess,rid,pid,LL,[0]*3,acts],endian='big',sign="signed")
     res=Send_Recv(r,cmd_act)
     print(f"ACT OK:{u32(res[32:36],endian='big')}")
     return 
+def PlayerInfo(r,sess,rid,pid):
+    cmd_pinfo=flat([CMD_PLAYER_INFO,sess,rid,pid,[0]*12],endian='big',sign="signed")
+    
+    res=Send_Recv(r,cmd_pinfo)
+    info=prasePinfo(res,2)
+    print(info)
+    return info
+
 if __name__=="__main__":
     r=remote('localhost',9880)
     rid=int(input('Rid:'))
@@ -203,5 +234,5 @@ if __name__=="__main__":
         if len(acts): Action(r,p1["session"],p1["room_id"],p1["player_id"],acts)
         acts=list(map(int,input('ACT P2:').split()))
         if len(acts): Action(r,p2["session"],p2["room_id"],p2["player_id"],acts)
-        
+        PlayerInfo(r,p1["session"],p1["room_id"],p1["player_id"])
     r.close()

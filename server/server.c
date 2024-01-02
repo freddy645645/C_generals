@@ -9,75 +9,6 @@
 
 #define MAX_PLAYER 100
 
-/*List_Room{
-    List_player*;
-    int room_id;
-    Queue_Cmd;
-
-};*/
-/*void test(int fd){
-    srand(time(NULL));
-    struct Header_Error_Res h1;
-    memset(&h1,0,HEADER_SIZE);
-    h1.code=RES_JOIN_FAIL;
-    for(int i=0;i<8;++i)
-        printf("%x\n",((int*)(&h1))[i]);
-    h1.session=getSessin();
-    sprintf(h1.errmsg,"This is Error Testing");
-    printf("Session h1: %d\n",h1.session);
-    printf("%s\n",h1.errmsg);
-    int re=sendData(fd,(struct Header_Base*)(&h1),sizeof(h1));
-    printf("%d\n",re);
-
-    int num=4;
-    struct Header_Room_Info_Res *h2=calloc(1,HEADER_SIZE+(num-2)*16);
-    h2->code=RES_JOIN_SUCC;
-    
-    h2->session=getSessin();
-    h2->room_id=5;
-    h2->player_id=0;
-    h2->sizeX=h2->sizeY=10;
-    //h2->player_cnt=num;
-    printf("Session h2: %x\n",h2->session);
-    sprintf(h2->player_names[0],"123456789");
-    sprintf(h2->player_names[1],"987654321");
-    sprintf(h2->player_names[2],"456789123");
-    sprintf(h2->player_names[3],"196453421");
-    re=sendData(fd,(struct Header_Base*)(h2),HEADER_SIZE+(num-2)*16);
-    printf("%d\n",re);
-
-
-    printf("test3\n");
-    struct Header_Room_Register* h3=NULL;
-    size_t len=0;
-    //printf("%p\n",h3);
-
-    re=recvData(fd,(struct Header_Base**)(&h3),&len);
-    //printf("%d\n",re);
-    // printf("%p %p\n",&h3,h3);
-    
-    for (int i=0;i<6;++i) printf("%x\n",((int *)(h3))[i]);
-    printf("%s\n%s\n",h3->name,h3->passwd);
-
-    printf("test4\n");
-    struct Header_Room_Join* h4=NULL;
-    len=0;
-    //printf("%p\n",h3);
-
-    re=recvData(fd,(struct Header_Base**)(&h4),&len);
-    //printf("%d\n",re);
-    // printf("%p %p\n",&h3,h3);
-    
-    for (int i=0;i<6;++i) printf("%x\n",((int *)(h4))[i]);
-    printf("%s\n%s\n",h4->name,h4->passwd);
-
-
-    close(fd);
-
-
-
-}
-*/
 
 fd_set allset;
 int fdCnt;
@@ -120,6 +51,7 @@ void commandHandler(int fd,struct Header_Base* _header, size_t len){
             break;
         }case CMD_PLAYER_INFO:{
             Get_Player_Info(&res,&reslen,(struct Header_Player_Info*)_header);
+            break;
         }
 
         default:{
