@@ -10,19 +10,19 @@ void ntohl_arr(int * data,int len){
 int sendData(int fd, struct Header_Base * header,size_t len){
     struct Header_Base* data=calloc(1,len);
     memcpy(data,header,len);
-
+    data->code=data->code+(len<<16);
     setLen(data->code,len);
     
     switch(header->code){
-        case RES_ROOM_INFO_SUCC :{
+        case RES_REGISTER_SUCC:case RES_JOIN_SUCC: case RES_START_GAME_SUCC: case RES_ROOM_INFO_SUCC :{
             htonl_arr((int *)(data),8);
             break;
         }
-        case RES_REGISTER_FAIL: case RES_JOIN_FAIL: case RES_START_GAME_FAIL: case RES_ROOM_INFO_FAIL:case RES_RECV_FAIL:case RES_ACTION_FAIL:case RES_MAP_INFO_FAIL:case RES_QUIT_FAIL:case RES_PLAYER_INFO_FAIL:{
+        case RES_REGISTER_FAIL: case RES_JOIN_FAIL: case RES_START_GAME_FAIL: case RES_ROOM_INFO_FAIL:case RES_RECV_FAIL:case RES_ACTION_FAIL:case RES_MAP_INFO_FAIL:case RES_QUIT_FAIL:case RES_QUIT_SUCC:case RES_PLAYER_INFO_FAIL:{
             htonl_arr((int *)data,8);
             break;
         }
-        case RES_REGISTER_SUCC:case RES_JOIN_SUCC: case RES_START_GAME_SUCC: case RES_ACTION_SUCC:case RES_MAP_INFO_SUCC: case RES_QUIT_SUCC: case RES_PLAYER_INFO_SUCC:{
+        case RES_ACTION_SUCC:case RES_MAP_INFO_SUCC: case RES_PLAYER_INFO_SUCC:{
             htonl_arr((int *)data,len/4);
             break;
         }
