@@ -207,32 +207,32 @@ def PlayerInfo(r,sess,rid,pid):
 if __name__=="__main__":
     r=remote('localhost',9880)
     rid=int(input('Rid:'))
-    p1=Reg(r,rid,'first','passwd')
-    
-    p2=Join(r,rid,'third','passwd')
+    nplay=int(input('nplay:'))
+    passwd="passwd"
+    players=[]
+    p0=Reg(r,rid,input('username:'),passwd,nplay=nplay)
+    players.append(p0)
+    p2=Join(r,rid,'third',passwd)
     QuitGame(r,p2["session"],p2["room_id"],p2["player_id"])
-    info1=RoomInfo(r,p1["session"],p1["room_id"],p1["player_id"])
-
-    p2=Join(r,rid,'second','passwd')
+    info0=RoomInfo(r,p0["session"],p0["room_id"],p0["player_id"])
+    for i in range(nplay-1):
+        pi=Join(r,rid,input('username:'),passwd)
+        infoi=RoomInfo(r,p2["session"],p2["room_id"],p2["player_id"])
+        players.append(pi)
     
-    info2=RoomInfo(r,p2["session"],p2["room_id"],p2["player_id"])
-    
-    
-    
-    gs=StartGame(r,p1["session"],p1["room_id"],p1["player_id"])
+    gs=StartGame(r,p0["session"],p0["room_id"],p0["player_id"])
 
     
     time.sleep(3)
     print('-------------')
     while True:
-        MapInfo(r,998244353,p2["room_id"],-1)
-        MapInfo(r,p1["session"],p1["room_id"],p1["player_id"])
-        print('-------------')
-        MapInfo(r,p2["session"],p2["room_id"],p2["player_id"])
+        MapInfo(r,998244353,p0["room_id"],-1)
+        for player in players:
+            MapInfo(r,player["session"],player["room_id"],player["player_id"])
+            print('-------------')
+        for player in players:
+            acts=list(map(int,input(f'ACT P{player["player_id"]} {gs["pname"][player["player_id"]].decode()}:').split()))
+            if len(acts): Action(r,player["session"],player["room_id"],player["player_id"],acts)
         
-        acts=list(map(int,input('ACT P1:').split()))
-        if len(acts): Action(r,p1["session"],p1["room_id"],p1["player_id"],acts)
-        acts=list(map(int,input('ACT P2:').split()))
-        if len(acts): Action(r,p2["session"],p2["room_id"],p2["player_id"],acts)
-        PlayerInfo(r,p1["session"],p1["room_id"],p1["player_id"])
+        PlayerInfo(r,p0["session"],p0["room_id"],p0["player_id"])
     r.close()

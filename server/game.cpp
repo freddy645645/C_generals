@@ -556,7 +556,7 @@ void* GameHandler(void *arg){
         delended();
         
         //const int microseconds=500*1000;
-        sleep(1);
+        this_thread::sleep_for(1000ms);
     }
    
 }
