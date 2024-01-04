@@ -170,6 +170,8 @@ void state_game() {
         print_middle(str, h + 4 + i);
     }
 
+
+
     fflush(stdout);
     sleep(3);
 }
