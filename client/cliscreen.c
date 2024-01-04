@@ -82,6 +82,7 @@ int print_middle(const char *buf, int h) {
     if(start <= 0)
         start = 1;
     print_at(buf, h, start);
+    fflush(stdout);
     return start + len;
 }
 
@@ -152,6 +153,31 @@ void get_at(char *c, int h, int w) {
     disable_echo();
 }
 
+int get_at_wait(char *c, int h, int w, int s, int us) {
+    fd_set rfds;
+    struct timeval tv;
+    int retval;
+    FD_ZERO(&rfds);
+    FD_SET(0, &rfds);
+
+    tv.tv_sec = s;
+    tv.tv_usec = us;
+
+    retval = select(1, &rfds, NULL, NULL, &tv);
+
+    if(retval == -1) {
+        error_mes("get_at_wait select error");
+    }
+    else if(retval) {
+        move_at(h, w);
+        scanf("%c", c);
+        return 1;
+    }
+    else {
+        return 0;
+    }
+}
+
 int read_server_check(int s, int us) {
     fd_set rfds;
     struct timeval tv;
@@ -173,4 +199,82 @@ int read_server_check(int s, int us) {
     else {
         return 0;
     }
+}
+
+void make_color(char **str, int idx) {
+    char *ret = calloc(BUF_SIZE, 1);
+    sprintf(ret, "\x1B[%dm%s\x1B[0m", 41+idx, *str);
+    *str = ret;
+}
+
+void make_text_color(char **str) {
+    char *ret = calloc(BUF_SIZE, 1);
+    sprintf(ret, "\x1B[%dm%s\x1B[0m", 36, *str);
+    *str = ret;
+}
+
+
+void map_type_soldiers(char **str, int row, int col) {
+    char *ret = calloc(4, 1);
+    char c;
+    if(GRID[row * SIZEY + col].type == GAME_MAP_FOG) {
+        c = 'X';
+    }
+    if(GRID[row * SIZEY + col].type == GAME_MAP_MOUNTAIN) {
+        c = '^';
+    }
+    if(GRID[row * SIZEY + col].type == GAME_MAP_CASTLE) {
+        c = '+';
+    }
+    if(GRID[row * SIZEY + col].type == GAME_MAP_SPACE) {
+        c = ' ';
+    }
+    if(GRID[row * SIZEY + col].type == GAME_MAP_HOME) {
+        c = '*';
+    }
+    ret[0] = c;
+    int x = GRID[row * SIZEY + col] .soldier_num;
+    ret[3] = x % 10 + '0', x /= 10;
+    ret[2] = x % 10 + '0', x /= 10;
+    ret[1] = x % 10 + '0', x /= 10;
+    if(ret[1] == '0') {
+        ret[1] = ' ';
+        if(ret[2] == '0') {
+            ret[2] = ' ';
+            if(ret[3] == '0')
+                ret[3] = ' ';
+        }
+    }
+    *str = ret;
+}
+
+int map_owner(int row, int col) {
+    return GRID[row * SIZEY + col].owner;
+}
+
+void map_row(char **str, int row) {
+    char *ret = calloc(BUF_SIZE, 1);
+    for(int i = 0; i < SIZEY; ++i) {
+        char *buf;
+        map_type_soldiers(&buf, row, i);
+        int owner = map_owner(row, i);
+        if(owner != -1)
+            make_color(&buf, owner);
+        if(row == POS_X && i == POS_Y)
+            make_text_color(&buf);
+        strcat(ret, buf);
+        strcat(ret, " ");
+    }
+    *str = ret;
+}
+
+void str_action_mode(char **str) {
+    char *ret = calloc(BUF_SIZE, 1);
+    if(ACTION_MODE == ACTION_MODE_MOVE)
+        strcpy(ret, "ACTION_MODE_MOVE");
+    else if(ACTION_MODE == ACTION_MODE_SELECT_ALL)
+        strcpy(ret, "ACTION_MODE_SELECT_ALL");
+    else if(ACTION_MODE == ACTION_MODE_SELECT_HALF)
+        strcpy(ret, "ACTION_MODE_SELECT_HALF");
+    *str = ret;
 }

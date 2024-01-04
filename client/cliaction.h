@@ -64,15 +64,17 @@ struct Header_Player_Info_Res* player_info();
 
 void player_update();
 
-void action_requst();
+void postion_check();
+
+void action_requst(struct Action act);
 
 void action_init();
 
-void action_mode();
+void action_get(char c);
 
-void action_move();
+void action_move(char c);
 
-void action_select();
+void action_select(char c, int mode);
 
 
 #endif

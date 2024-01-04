@@ -16,3 +16,6 @@ int ROUND = 0;
 struct Grid *GRID = NULL;
 
 struct Player_Info *PLAYER_INFO = NULL;
+
+int ACTION_MODE = ACTION_MODE_MOVE;
+int POS_X = 0, POS_Y = 0;

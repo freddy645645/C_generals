@@ -38,7 +38,17 @@ void print_loading(const char *buf, int h, int w);
 void read_at(char *buf, int h, int w);
 int read_at_wait(char *buf, int h, int w, int s, int us);
 void get_at(char *c, int h, int w);
+int get_at_wait(char *c, int h, int w, int s, int us);
 
 int read_server_check(int s, int us);
+
+void make_color(char **str, int idx);
+void make_text_color(char **str);
+
+void map_type_soldiers(char **str, int row, int col);
+int map_owner(int row, int col);
+void map_row(char **str, int row);
+
+void str_action_mode(char **str);
 
 #endif

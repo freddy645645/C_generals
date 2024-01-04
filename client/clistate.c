@@ -110,6 +110,10 @@ void state_room() {
         clear_screen();
         room_update();
 
+        if(GAME_STATE == GAME_STATE_INGAME) {
+            break;
+        }
+
         int h = 1, colW = 20;
         char str[BUF_SIZE];
         sprintf(str, "Room ID: %d\n", ROOM_ID);
@@ -139,10 +143,6 @@ void state_room() {
             }
         }
         disable_echo();
-        if(read_server_check(0, 500000)) {
-            check_start_game();
-            break;
-        }
 
         fflush(stdout);
         usleep(500000);
@@ -150,28 +150,72 @@ void state_room() {
 }
 
 void state_game() {
-    clear_screen();
-    // print_middle("IN GAME", 2);
 
-    map_update();
-    player_update();
+    while(1) {
+        clear_screen();
+        map_update();
+        player_update();
 
-    int h = 1, colW = 13;
-    char str[BUF_SIZE];
-    sprintf(str, "Room ID: %d\n", ROOM_ID);
-    print_middle(str, h);
-    sprintf(str, "%-*s | %-*s | %-*s | %-*s | %-*s \n", colW, "Player Index", colW, "Player Name",
-        colW, "Grid Num", colW, "Soldier Num", colW, "Player state");
-    print_middle(str, h + 3);
-    for(int i = 0; i < PLAYER_NUMBER; ++i) {
-        sprintf(str, "%-*d | %-*s | %-*d | %-*d | %-*d\n", colW, i, colW, PLAYER_NAMES[i],
-            colW, PLAYER_INFO[i].grid_num, colW, PLAYER_INFO[i].soldier_num,
-            colW, PLAYER_INFO[i].player_state);
-        print_middle(str, h + 4 + i);
+        if(GAME_STATE == GAME_STATE_END) {
+            break;
+        }
+
+        int nowH, nowW;
+        get_screen_size(&nowH, &nowW);
+        int h = 1, colW = 13;
+        char str[BUF_SIZE];
+        sprintf(str, "Room ID: %d\n", ROOM_ID);
+        print_middle(str, h);
+        sprintf(str, "%-*s | %-*s | %-*s | %-*s | %-*s\n", colW, "Player Index", colW, "Player Name",
+            colW, "Grid Num", colW, "Soldier Num", colW, "Player state");
+        print_middle(str, h + 3);
+        for(int i = 0; i < PLAYER_NUMBER; ++i) {
+            char *buf = calloc(BUF_SIZE, 1);
+            strcpy(buf, PLAYER_NAMES[i]);
+            make_color(&buf, i);
+            sprintf(str, "%-*d | %-*s | %-*d | %-*d | %-*d\n", colW, i, colW, buf,
+                colW, PLAYER_INFO[i].grid_num, colW, PLAYER_INFO[i].soldier_num,
+                colW, PLAYER_INFO[i].player_state);
+            print_middle(str, h + 4 + i);
+        }
+
+        // h + 4 + PLAYER_NUMBER
+
+        sprintf(str, "Current Round: %d\n", ROUND);
+        print_middle(str, h + 6 + PLAYER_NUMBER);
+
+        for(int i = 0; i < SIZEX; ++i) {
+            char *buf;
+            map_row(&buf, i);
+            print_at(buf, h + 7 + PLAYER_NUMBER + i, nowW / 2 - SIZEY * 2);
+        }
+
+        fflush(stdout);
+        // h + 7 + PLAYER_NUMBER + SIZEX
+
+        sprintf(str, "Your position X: %d, position Y: %d", POS_X, POS_Y);
+        print_middle(str, h + 8 + PLAYER_NUMBER + SIZEX);
+        char *buf;
+        str_action_mode(&buf);
+        sprintf(str, "Your action mode: %s", buf);
+        print_middle(str, h + 9 + PLAYER_NUMBER + SIZEX);
+        sprintf(str, "Enter [wasd] to move, [q(MOVE) e(ALL) r(HALF)] to change mode: ");
+        int tail = print_middle(str, h + 10 + PLAYER_NUMBER + SIZEX);
+        fflush(stdout);
+        char c;
+        if(get_at_wait(&c, h + 10 + PLAYER_NUMBER + SIZEX, tail, 0, 500000)) {
+            action_get(c);
+        }
+
+        fflush(stdout);
     }
 
+    sleep(1);
+}
 
-
+void state_end() {
+    clear_screen();
+    print_middle("END", 3);
     fflush(stdout);
-    sleep(3);
+    sleep(1);
 }

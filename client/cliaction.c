@@ -230,6 +230,8 @@ void room_update() {
     for(int i = 0; i < PLAYER_NUMBER; ++i) {
         if(room->player_names[i][0] != 0) {
             PLAYER_CNT++;
+            for(int j = 0; j < 15; ++j) if(PLAYER_NAMES[i][j] == 0)
+                PLAYER_NAMES[i][j] = ' ';
         }
     }
 
@@ -372,12 +374,89 @@ void player_update() {
     return;
 }
 
-void action_requst(){}
+void postion_check() {
+    if(POS_X < 0) POS_X = 0;
+    if(POS_X >= SIZEX) POS_X = SIZEX - 1;
+    if(POS_Y < 0) POS_Y = 0;
+    if(POS_Y >= SIZEY) POS_Y = SIZEY - 1;
+}
+
+void action_requst(struct Action act) {
+    status_mes("sending action request");
+
+    struct Header_Action request;
+    struct Header_Action_Res *result;
+    size_t len;
+    memset(&request, 0, sizeof(request));
+
+    request.code = CMD_ACTION;
+    request.session = SESSION;
+    request.room_id = ROOM_ID;
+    request.player_id = PLAYER_ID;
+
+    request.num_Action = 1;
+    request.action[0] = act;
+
+    send_data(SOCKFD, (struct Header_Base*)(&request), sizeof(request));
+    recv_data(SOCKFD, (struct Header_Base**)(&result), &len);
+
+    status_mes("successfully send action request");
+    return;
+}
 
 void action_init(){}
 
-void action_mode(){}
+void action_get(char c) {
+    status_mes("action_get");
+    // q -> move
+    // e -> select all
+    // r -> select half;
+    if(c == 'q')
+        ACTION_MODE = ACTION_MODE_MOVE;
+    else if(c == 'e')
+        ACTION_MODE = ACTION_MODE_SELECT_ALL;
+    else if(c == 'r')
+        ACTION_MODE = ACTION_MODE_SELECT_HALF;
+    else if(ACTION_MODE == ACTION_MODE_MOVE)
+        action_move(c);
+    else if(ACTION_MODE == ACTION_MODE_SELECT_ALL)
+        action_select(c, 1);
+    else if(ACTION_MODE == ACTION_MODE_SELECT_HALF)
+        action_select(c, 0);
+}
 
-void action_move(){}
+void action_move(char c) {
+    status_mes("action_move");
+    if(c == 'w')
+        POS_X--;
+    if(c == 'a')
+        POS_Y--;
+    if(c == 's')
+        POS_X++;
+    if(c == 'd')
+        POS_Y++;
+    postion_check();
+}
 
-void action_select(){}
+void action_select(char c, int mode) {
+    status_mes("action_selcet");
+    int way = 0;
+
+    if(c == 'w')
+        way = 2;
+    if(c == 'a')
+        way = 3;
+    if(c == 's')
+        way = 0;
+    if(c == 'd')
+        way = 1;
+
+    struct Action act;
+    act.x = POS_X;
+    act.y = POS_Y;
+    act.way = way;
+    act.all_or_half = (mode == ACTION_MODE_SELECT_ALL ? 0 : 1); // ???????? 
+
+    action_requst(act);
+    action_move(c);
+}

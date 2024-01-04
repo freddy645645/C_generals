@@ -16,4 +16,6 @@ void state_room();
 
 void state_game();
 
+void state_end();
+
 #endif
