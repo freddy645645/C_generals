@@ -84,7 +84,7 @@ void state_entry() {
     print_at("                        Enter Map Max Y-axis:", hh + 15, ww);
         read_at(buf, hh + 15, ww + 46);
         sizeY = atoi(buf);
-
+    
         // Register 
         room_register(roomID, playerNum, sizeX, sizeY, name, passwd);
     }
@@ -98,8 +98,78 @@ void state_entry() {
         memcpy(buf, passwd, BUF_SIZE);
 
         // Join
+        room_join(roomID, name, passwd);
     }
     
     fflush(stdout);
     sleep(1);
+}
+
+void state_room() {
+    while(1) {
+        clear_screen();
+        room_update();
+
+        int h = 1, colW = 20;
+        char str[BUF_SIZE];
+        sprintf(str, "Room ID: %d\n", ROOM_ID);
+        print_middle(str, h);
+        sprintf(str, "Current Wating Player Number: %d/%d\n", PLAYER_CNT, PLAYER_NUMBER);
+        print_middle(str, h + 1);
+        sprintf(str, "%-*s | %-*s\n", colW, "Player Index", colW, "Player Name");
+        print_middle(str, h + 3);
+        for(int i = 0; i < PLAYER_NUMBER; ++i) {
+            sprintf(str, "%-*d | %-*s\n", colW, i, colW, PLAYER_NAMES[i]);
+            print_middle(str, h + 4 + i);
+        }
+        sprintf(str, "Enter 'q' to leave or 'r' to force the game start: ");
+        int tail = print_middle(str, h + 5 + PLAYER_NUMBER);
+        fflush(stdout);
+
+        enable_echo();
+        if(read_at_wait(str, h + 5 + PLAYER_NUMBER, tail, 1, 0)) {
+            disable_echo();
+            if(!strcmp(str, "q")) {
+                room_quit();
+            }
+            else if(!strcmp(str, "r")) {
+                start_game();
+                check_start_game();
+                break;
+            }
+        }
+        disable_echo();
+        if(read_server_check(0, 500000)) {
+            check_start_game();
+            break;
+        }
+
+        fflush(stdout);
+        usleep(500000);
+    } 
+}
+
+void state_game() {
+    clear_screen();
+    // print_middle("IN GAME", 2);
+
+    map_update();
+    player_update();
+
+    int h = 1, colW = 13;
+    char str[BUF_SIZE];
+    sprintf(str, "Room ID: %d\n", ROOM_ID);
+    print_middle(str, h);
+    sprintf(str, "%-*s | %-*s | %-*s | %-*s | %-*s \n", colW, "Player Index", colW, "Player Name",
+        colW, "Grid Num", colW, "Soldier Num", colW, "Player state");
+    print_middle(str, h + 3);
+    for(int i = 0; i < PLAYER_NUMBER; ++i) {
+        sprintf(str, "%-*d | %-*s | %-*d | %-*d | %-*d\n", colW, i, colW, PLAYER_NAMES[i],
+            colW, PLAYER_INFO[i].grid_num, colW, PLAYER_INFO[i].soldier_num,
+            colW, PLAYER_INFO[i].player_state);
+        print_middle(str, h + 4 + i);
+    }
+
+    fflush(stdout);
+    sleep(3);
 }

@@ -23,7 +23,6 @@
 #include <stdio.h>
 #include <time.h>
 
-#define BUF_SIZE 1024
 
 #define getLen(x)       (((uint32_t)(x))>>16)
 #define clrLen(x)       (((x))&=((1<<16)-1))
@@ -39,13 +38,41 @@ void error_mes(char *mes);
 void error_check(struct Header_Error_Res *header);
 
 void send_data(int fd, struct Header_Base *header, size_t len);
-void recv_data(int fd, struct Header_Base *header, size_t *len);
+void recv_data(int fd, struct Header_Base **header, size_t *len);
 
 void connect_server(char *ip, char *port);
 
 void room_register(int roomID, int playerNum, int szX, int szY,
     char *name, char *passwd);
 
-struct Header_Room_Info_Res room_info();
+void room_join(int roomID, char *name, char *passwd);
+
+struct Header_Room_Info_Res* room_info();
+
+void room_update();
+
+void room_quit();
+
+void start_game();
+void check_start_game();
+
+struct Header_Map_Info_Res* map_info();
+
+void map_update();
+
+struct Header_Player_Info_Res* player_info();
+
+void player_update();
+
+void action_requst();
+
+void action_init();
+
+void action_mode();
+
+void action_move();
+
+void action_select();
+
 
 #endif

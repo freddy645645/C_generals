@@ -48,9 +48,10 @@
 #define GAME_MAP_FOG        -2
 #define GAME_MAP_MOUNTAIN   -3
 #define GAME_MAP_CASTLE     -4
+#define GAME_MAP_SPACE      -5
+#define GAME_MAP_HOME       -6
 
 #define GAME_MAP_OWN_NEUTRAL   -1
-
 #define HEADER_SIZE 64
 
 struct Header_Base{
@@ -186,14 +187,17 @@ struct Header_Map_Info{
     int32_t session;
     int32_t room_id;
     int32_t player_id;
-    int32_t game_state;
-    int32_t unused[11];
+    int32_t unused[12];
 }__attribute__ ((aligned (4)));
 struct Grid{
     int32_t type;
     int32_t owner;
     int32_t soldier_num;
     int32_t unused;
+    #ifdef __cplusplus
+    Grid(){}
+    Grid(int32_t _type,int32_t _owner,int32_t _soldier_num):type(_type),owner(_owner),soldier_num(_soldier_num){}
+    #endif
 }__attribute__ ((aligned (4)));
 struct Header_Map_Info_Res{
     int32_t code;

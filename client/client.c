@@ -16,6 +16,8 @@ void gameflow() {
     state_connect();
     state_loading();
     state_entry();
+    state_room();
+    state_game();
 
     cursor_visable(1);
     enable_echo();

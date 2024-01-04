@@ -73,6 +73,18 @@ void print_at(const char *buf, int h, int w) {
     printf("\x1B[%d;%dH%s", h, w, buf);
 }
 
+int print_middle(const char *buf, int h) {
+    int nowH, nowW;
+    get_screen_size(&nowH, &nowW);
+    int len = strlen(buf);
+    int middle = nowW / 2;
+    int start = middle - len / 2;
+    if(start <= 0)
+        start = 1;
+    print_at(buf, h, start);
+    return start + len;
+}
+
 void print_at_slow(const char *buf, int h, int w) {
     for(int i = 0; i < strlen(buf); ++i) {
         printf("\x1B[%d;%dH", h, w);
@@ -107,9 +119,58 @@ void read_at(char *buf, int h, int w) {
     disable_echo();
 }
 
+int read_at_wait(char *buf, int h, int w, int s, int us) {
+    fd_set rfds;
+    struct timeval tv;
+    int retval;
+    FD_ZERO(&rfds);
+    FD_SET(0, &rfds);
+
+    tv.tv_sec = s;
+    tv.tv_usec = us;
+
+    retval = select(1, &rfds, NULL, NULL, &tv);
+
+    if(retval == -1) {
+        error_mes("read_at_wait select error");
+    }
+    else if(retval) {
+        memset(buf, 0, sizeof(buf));
+        move_at(h, w);
+        scanf("%s", buf);
+        return 1;
+    }
+    else {
+        return 0;
+    }
+}
+
 void get_at(char *c, int h, int w) {
     enable_echo();
     move_at(h, w);
     scanf("%c", c);
     disable_echo();
+}
+
+int read_server_check(int s, int us) {
+    fd_set rfds;
+    struct timeval tv;
+    int retval;
+    FD_ZERO(&rfds);
+    FD_SET(SOCKFD, &rfds);
+
+    tv.tv_sec = s;
+    tv.tv_usec = us;
+
+    retval = select(SOCKFD + 1, &rfds, NULL, NULL, &tv);
+
+    if(retval == -1) {
+        error_mes("read_server_check select error");
+    }
+    else if(retval) {
+        return 1;
+    }
+    else {
+        return 0;
+    }
 }

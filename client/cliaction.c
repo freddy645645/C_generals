@@ -46,8 +46,13 @@ void send_data(int fd, struct Header_Base *header, size_t len) {
     setLen(data->code, len);
     
     switch(header->code){
-        case CMD_REGISTER: {
-            htonl_arr((int *)(data), 8);
+        case CMD_REGISTER: case CMD_JOIN: {
+            htonl_arr((int*)(data), 8);
+            break;
+        }
+        case CMD_START_GAME: case CMD_ROOM_INFO: case CMD_ACTION: 
+        case CMD_MAP_INFO: case CMD_QUIT: case CMD_PLAYER_INFO: {
+            htonl_arr((int*)(data), len / 4);
             break;
         }
         default: {
@@ -67,7 +72,7 @@ void send_data(int fd, struct Header_Base *header, size_t len) {
     return;
 }
 
-void recv_data(int fd, struct Header_Base *header, size_t *len){
+void recv_data(int fd, struct Header_Base **header, size_t *len){
     struct Header_Base base;
 
     status_mes("reading header");
@@ -83,7 +88,7 @@ void recv_data(int fd, struct Header_Base *header, size_t *len){
 
     if(dataLen != HEADER_SIZE){
         status_mes("reading extra data");
-        re = read(fd, ((void *)(&data))+HEADER_SIZE, dataLen-HEADER_SIZE);
+        re = read(fd, ((void *)(data))+HEADER_SIZE, dataLen-HEADER_SIZE);
         if(re+HEADER_SIZE != dataLen) {
             free(data);
             error_mes("recv_data data length error");
@@ -92,9 +97,22 @@ void recv_data(int fd, struct Header_Base *header, size_t *len){
 
     int code = getCode(ntohl(base.code));
     switch(code) {
-        case RES_REGISTER_SUCC: case RES_REGISTER_FAIL: {
+        case RES_REGISTER_SUCC: case RES_JOIN_SUCC: 
+        case RES_START_GAME_SUCC: case RES_ROOM_INFO_SUCC: {
             // return Header_Room_Info_Res
-            htonl_arr((int *)(data), 8);
+            ntohl_arr((int *)(data), 8);
+            break;
+        }
+        case RES_ACTION_SUCC: case RES_MAP_INFO_SUCC: 
+        case RES_PLAYER_INFO_SUCC: {
+            ntohl_arr((int *)(data), dataLen / 4);
+            break;
+        }
+        case RES_REGISTER_FAIL: case RES_JOIN_FAIL: case RES_START_GAME_FAIL:
+        case RES_ROOM_INFO_FAIL: case RES_RECV_FAIL: case RES_ACTION_FAIL:
+        case RES_MAP_INFO_FAIL: case RES_QUIT_FAIL: case RES_QUIT_SUCC: 
+        case RES_PLAYER_INFO_FAIL: {
+            ntohl_arr((int *)data, 8);
             break;
         }
         default:{
@@ -103,11 +121,10 @@ void recv_data(int fd, struct Header_Base *header, size_t *len){
         }
     }
     clrLen(data->code);
-    memcpy(header, data, dataLen);
+    *header = data;
     *len = dataLen;
-    free(data);
 
-    error_check((struct Header_Error_Res*)(header));
+    error_check((struct Header_Error_Res*)(*header));
     return;
 }
 
@@ -128,6 +145,7 @@ void connect_server(char *ip, char *port) {
 
 void room_register(int roomID, int playerNum, int szX, int szY,
     char *name, char *passwd) {
+    status_mes("registering the room");
     struct Header_Room_Register myRegister;
     memset(&myRegister, 0, sizeof(myRegister));
 
@@ -139,38 +157,227 @@ void room_register(int roomID, int playerNum, int szX, int szY,
     strcpy(myRegister.name, name);
     strcpy(myRegister.passwd, passwd);
 
-    struct Header_Room_Info_Res res;
+    struct Header_Room_Info_Res *res;
     size_t resLen;
-    status_mes("registering the room");
     send_data(SOCKFD, (struct Header_Base*)(&myRegister), sizeof(myRegister));
-    recv_data(SOCKFD, (struct Header_Base*)(&res), &resLen);
+    recv_data(SOCKFD, (struct Header_Base**)(&res), &resLen);
 
-    SESSION = res.session; 
-    ROOM_ID = res.room_id;
-    PLAYER_ID = res.player_id;
+    SESSION = res->session; 
+    ROOM_ID = res->room_id;
+    PLAYER_ID = res->player_id;
 
+    status_mes("finish room rigistered");
     return;
 }
 
+void room_join(int roomID, char *name, char *passwd) {
+    status_mes("joining the room");
 
-struct Header_Room_Info_Res room_info() {
+    struct Header_Room_Join request;
+    struct Header_Room_Info_Res *result;
+    size_t len;
+    memset(&request, 0, sizeof(request));
+
+    request.code = CMD_JOIN;
+    request.room_id = roomID;
+    strcpy(request.name, name);
+    strcpy(request.passwd, passwd);
+    send_data(SOCKFD, (struct Header_Base*)(&request), sizeof(request));
+    recv_data(SOCKFD, (struct Header_Base**)(&result), &len);
+
+    SESSION = result->session; 
+    ROOM_ID = result->room_id;
+    PLAYER_ID = result->player_id;
+
+    status_mes("Finish room joined");
+    return;
+}
+
+struct Header_Room_Info_Res* room_info() {
+    status_mes("getting room info");
 
     if(!SOCKFD) {
         error_mes("not connect to server yet");
     }
 
     struct Header_Room_Info request;
-    struct Header_Room_Info_Res result;
+    struct Header_Room_Info_Res *result;
     size_t len;
     memset(&request, 0, sizeof(request));
-    memset(&result, 0, sizeof(result));
 
     request.code = CMD_ROOM_INFO;
     request.session = SESSION;
     request.room_id = ROOM_ID;
     request.player_id = PLAYER_ID;
 
-    status_mes("getting room info");
     send_data(SOCKFD, (struct Header_Base*)(&request), sizeof(request));
-    recv_data(SOCKFD, (struct Header_Base*)(&result), &len);
+    recv_data(SOCKFD, (struct Header_Base**)(&result), &len);
+
+    status_mes("successfully get room info");
+    return result;
 }
+
+void room_update() {
+    status_mes("updating room info");
+
+    struct Header_Room_Info_Res *room = room_info();
+
+    PLAYER_NUMBER = room->player_number;
+    PLAYER_CNT = 0;
+    PLAYER_NAMES = calloc(PLAYER_NUMBER, 16);
+    memcpy(PLAYER_NAMES, room->player_names, PLAYER_NUMBER*16);
+
+    for(int i = 0; i < PLAYER_NUMBER; ++i) {
+        if(room->player_names[i][0] != 0) {
+            PLAYER_CNT++;
+        }
+    }
+
+    SIZEX = room->sizeX;
+    SIZEY = room->sizeY;
+
+    GAME_STATE = room->game_state;
+
+    free(room);
+
+    status_mes("finish updating room info");
+    return;
+}
+
+void room_quit() {
+    status_mes("quiting the room");
+
+    struct Header_Quit request;
+    struct Header_Quit_Res *result;
+    size_t len;
+    memset(&request, 0, sizeof(request));
+
+    request.code = CMD_QUIT;
+    request.session = SESSION;
+    request.room_id = ROOM_ID;
+    request.player_id = PLAYER_ID;
+
+    send_data(SOCKFD, (struct Header_Base*)(&request), sizeof(request));
+    recv_data(SOCKFD, (struct Header_Base**)(&result), &len);
+
+    status_mes("quit success");
+    exit(0);
+}
+
+void start_game() {
+    status_mes("request to start the game");
+
+    struct Header_Start_Game request;    
+
+    request.code = CMD_START_GAME;
+    request.session = SESSION;
+    request.room_id = ROOM_ID;
+    request.player_id = PLAYER_ID;
+
+    send_data(SOCKFD, (struct Header_Base*)(&request), sizeof(request));
+
+    status_mes("successfully send the request");
+    return;
+}
+
+void check_start_game() {
+    status_mes("checking start_game request is received");
+
+    struct Header_Room_Info_Res *result;
+    size_t len;
+
+    recv_data(SOCKFD, (struct Header_Base**)(&result), &len);
+    if(result->code != RES_START_GAME_SUCC) {
+        error_mes("fail to start game");
+    }
+
+    status_mes("can start the game now");
+    return;
+}
+
+struct Header_Map_Info_Res* map_info() {
+    status_mes("getting map info");
+
+    struct Header_Map_Info request;
+    struct Header_Map_Info_Res *result;
+    size_t len;
+    memset(&request, 0, sizeof(request));
+
+    request.code = CMD_MAP_INFO;
+    request.session = SESSION;
+    request.room_id = ROOM_ID;
+    request.player_id = PLAYER_ID;
+
+    send_data(SOCKFD, (struct Header_Base*)(&request), sizeof(request));
+    recv_data(SOCKFD, (struct Header_Base**)(&result), &len);
+
+    status_mes("successfully get map info");
+    return result;
+}
+
+void map_update() {
+    status_mes("updating map info");
+
+    struct Header_Map_Info_Res *map = map_info();
+
+    SIZEX = map->sizeX;
+    SIZEY = map->sizeY;
+
+    ROUND = map->round;
+    GAME_STATE = map->game_state;
+
+    GRID = calloc(SIZEX * SIZEY, sizeof(struct Grid));
+    memcpy(GRID, map->grid, SIZEX * SIZEY * sizeof(struct Grid));
+
+    free(map);
+
+    status_mes("finish updating map info");
+    return;
+}
+
+struct Header_Player_Info_Res* player_info() {
+    status_mes("getting player info");
+
+    struct Header_Player_Info request;
+    struct Header_Player_Info_Res *result;
+    size_t len;
+    memset(&request, 0, sizeof(request));
+
+    request.code = CMD_PLAYER_INFO;
+    request.session = SESSION;
+    request.room_id = ROOM_ID;
+    request.player_id = PLAYER_ID;
+
+    send_data(SOCKFD, (struct Header_Base*)(&request), sizeof(request));
+    recv_data(SOCKFD, (struct Header_Base**)(&result), &len);
+
+    status_mes("successfully get player info");
+    return result;
+
+}
+
+void player_update() {
+    status_mes("updating player info");
+
+    struct Header_Player_Info_Res *player = player_info();
+
+    GAME_STATE = player->game_state;
+
+    PLAYER_INFO = calloc(PLAYER_NUMBER, sizeof(struct Player_Info));
+    memcpy(PLAYER_INFO, player->player, PLAYER_NUMBER * sizeof(struct Player_Info));
+
+    free(player);
+
+    status_mes("finish updating player info");
+    return;
+}
+
+void action_requst(){}
+
+void action_init(){}
+
+void action_mode(){}
+
+void action_move(){}
+
+void action_select(){}
