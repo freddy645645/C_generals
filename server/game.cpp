@@ -439,28 +439,28 @@ void Get_Player_Info(Header_Base** res,size_t* reslen,Header_Player_Info* header
     }
     room->room_mutex.lock();
     struct Node_Player* player=&(room->players[header->player_id]);
-    if(room->game_state!=GAME_STATE_INGAME){
+    if(room->game_state==GAME_STATE_WAIT){
         onError((Header_Error_Res**)res,reslen,header->session, RES_PLAYER_INFO_FAIL,"Game not Going");
         room->room_mutex.unlock();
         return;
     }
-    if(player->player_state!=PLAYER_STATE_ALIVE){
+    /*if(player->player_state!=PLAYER_STATE_ALIVE){
         onError((Header_Error_Res**)res,reslen,header->session, RES_PLAYER_INFO_FAIL,"You are Died/Quited");
         room->room_mutex.unlock();
         return;
-    }
+    }*/
     
     
     printf("Room %d '%s' get User Info\n",header->room_id,player->name);
     
-    int lenNeed=HEADER_SIZE+sizeof(Grid)*(max(0,room->player_number-2));
+    int lenNeed=HEADER_SIZE+sizeof(Player_Info)*(max(0,room->player_number-2));
     Header_Player_Info_Res* tmp=(Header_Player_Info_Res*)calloc(1,lenNeed);
     tmp->code=RES_MAP_INFO_SUCC;
     tmp->session=header->session;
     tmp->room_id=header->room_id;
     tmp->player_id=header->player_id;
     tmp->game_state=room->game_state;
-    //getStat(tmp->player,room,player);
+    getStat(tmp->player,room,player);
     *reslen=lenNeed;
     *res=(Header_Base*)tmp;
     
@@ -556,7 +556,7 @@ void* GameHandler(void *arg){
         delended();
         
         //const int microseconds=500*1000;
-        sleep(1);
+        this_thread::sleep_for(1000ms);
     }
    
 }
