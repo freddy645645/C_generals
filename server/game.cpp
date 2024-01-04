@@ -444,18 +444,18 @@ void Get_Player_Info(Header_Base** res,size_t* reslen,Header_Player_Info* header
         room->room_mutex.unlock();
         return;
     }
-    /*if(player->player_state!=PLAYER_STATE_ALIVE){
+    if(player->player_state!=PLAYER_STATE_ALIVE){
         onError((Header_Error_Res**)res,reslen,header->session, RES_PLAYER_INFO_FAIL,"You are Died/Quited");
         room->room_mutex.unlock();
         return;
-    }*/
+    }
     
     
     printf("Room %d '%s' get User Info\n",header->room_id,player->name);
     
     int lenNeed=HEADER_SIZE+sizeof(Player_Info)*(max(0,room->player_number-2));
     Header_Player_Info_Res* tmp=(Header_Player_Info_Res*)calloc(1,lenNeed);
-    tmp->code=RES_MAP_INFO_SUCC;
+    tmp->code=RES_PLAYER_INFO_SUCC;
     tmp->session=header->session;
     tmp->room_id=header->room_id;
     tmp->player_id=header->player_id;
